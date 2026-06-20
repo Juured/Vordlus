@@ -349,7 +349,19 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
   );
 }
 
-function Row({ label, value, mono = false, hint }: { label: string; value: React.ReactNode; mono?: boolean; hint?: string }) {
+function Row({
+  label,
+  value,
+  mono = false,
+  hint,
+  info,
+}: {
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
+  hint?: string;
+  info?: string;
+}) {
   return (
     <tr className="border-b border-rule last:border-b-0">
       <td className="px-4 py-2.5 text-muted align-top whitespace-nowrap">
