@@ -5,6 +5,7 @@ import { SCORE_LABELS, type ScoreKey } from "@/lib/scores";
 import { ageOf, fmtM2, fmtMoney, fmtYear } from "@/lib/estdata";
 import { LifestyleMatrix } from "@/components/LifestyleMatrix";
 import { AvmBar } from "@/components/AvmBar";
+import { Monogram } from "@/components/Monogram";
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -24,21 +25,24 @@ const IconDoor = <Icon d="M3 22h18M5 22V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v18M14 1
 const IconRuler = <Icon d="M21 16V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM7 10h.01M11 10h.01M15 10h.01M7 14h.01M11 14h.01M15 14h.01" />;
 const IconSun = <Icon d="M12 3v1M12 20v1M3 12h1M20 12h1M5.6 5.6l.7.7M17.7 17.7l.7.7M5.6 18.4l.7-.7M17.7 6.3l.7-.7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />;
 
-function PhotoFor({ id }: { id: string }) {
-  const sum = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const cls = ["bg-stone-300", "bg-amber-200", "bg-slate-300", "bg-stone-200"][sum % 4];
+function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onRemove }: {
+  id: string;
+  address: string;
+  buildingType: string | null | undefined;
+  index: number;
+  overall: number;
+  overallLabel: string;
+  onRemove: () => void;
+}) {
   return (
-    <div className={`relative w-full aspect-[4/3] ${cls}`}>
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 150" preserveAspectRatio="none">
-        <path d="M30 90 L70 50 L110 90 L110 130 L30 130 Z" fill="rgba(0,0,0,0.10)" />
-        <path d="M72 52 L72 40 L110 90" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="1.2" />
-        <rect x="42" y="100" width="14" height="14" fill="rgba(255,255,255,0.35)" />
-        <rect x="86" y="100" width="14" height="14" fill="rgba(255,255,255,0.35)" />
-        <circle cx="155" cy="105" r="14" fill="rgba(0,0,0,0.10)" />
-        <rect x="153" y="105" width="4" height="20" fill="rgba(0,0,0,0.10)" />
-        <circle cx="170" cy="40" r="10" fill="rgba(255,255,255,0.45)" />
-      </svg>
-    </div>
+    <Monogram
+      address={address}
+      buildingType={buildingType}
+      index={index}
+      overallScore={overall}
+      overallLabel={overallLabel}
+      onClose={onRemove}
+    />
   );
 }
 
@@ -164,25 +168,17 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
 
   return (
     <div className="bg-white border border-rule overflow-hidden flex flex-col">
-      {/* Photo */}
+      {/* Monogram (replaces photo) */}
       <div className="relative">
-        <PhotoFor id={column.id} />
-        <button
-          onClick={onRemove}
-          className="absolute top-2 right-2 w-7 h-7 grid place-items-center bg-white/90 backdrop-blur
-                     border border-rule text-ink text-[12px] hover:bg-ink hover:text-paper transition-colors"
-          aria-label="Eemalda võrdlusest"
-        >
-          ✕
-        </button>
-        <span className="absolute top-2 left-2 text-[10px] font-semibold tracking-wider uppercase bg-white/90 backdrop-blur px-2 py-0.5 text-ink">
-          #{String(index + 1).padStart(2, "0")}
-        </span>
-        {overall > 0 && (
-          <span className="absolute bottom-2 right-2 bg-ink text-paper text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5">
-            {overall.toFixed(1)} / 5 · {overallLabel}
-          </span>
-        )}
+        <PhotoFor
+          id={column.id}
+          address={addr}
+          buildingType={e?.nimetus}
+          index={index}
+          overall={overall}
+          overallLabel={overallLabel}
+          onRemove={onRemove}
+        />
       </div>
 
       {/* Name + location */}
