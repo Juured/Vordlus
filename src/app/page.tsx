@@ -614,7 +614,7 @@ export default function Home() {
                  </div>
 
                 <div className="mt-8">
-                  <PropertyMap columns={filteredWithScores} />
+                  <PropertyMap />
                 </div>
               </>
             )}
