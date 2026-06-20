@@ -69,6 +69,18 @@ export default function Home() {
         }));
         setColumns(initial);
         setReady(true);
+        // Strip ?c= from the URL so reloads don't re-fetch the share.
+        // Then kick off resolveSlot for each loaded input — the share URL
+        // only encodes the raw strings, not the resolved data, so the
+        // recipient needs to fetch it themselves.
+        try {
+          const clean = new URL(window.location.href);
+          clean.searchParams.delete("c");
+          window.history.replaceState({}, "", clean.toString());
+        } catch {}
+        for (const col of initial) {
+          void resolveSlot(col.input.raw);
+        }
         return;
       }
     }

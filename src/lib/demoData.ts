@@ -44,7 +44,11 @@ export const DEMO_LISTINGS: DemoListing[] = [
   {
     label: "Õ76",
     address: "Õismäe tee 76-41, Haabersti, Tallinn",
-    raw: "https://www.kv.ee/3736580",
+    // Use the address as raw input — bare kv.ee IDs (e.g. ?/3736580) need
+    // the (not-yet-deployed) scrape service to resolve through kv.ee, but
+    // the address form resolves through In-AKS directly. The kv.ee URL
+    // is preserved on listingUrl for the "Vaata kuulutust ↗" link.
+    raw: "Õismäe tee 76, Tallinn",
     price: 140000,
     area: 65.5,
     rooms: 3,
@@ -71,7 +75,7 @@ export const DEMO_LISTINGS: DemoListing[] = [
   {
     label: "G29",
     address: "Gonsiori tn 29, Kesklinn, Tallinn",
-    raw: "https://www.kv.ee/3479033",
+    raw: "Gonsiori 29, Tallinn",
     price: 465000,
     area: 89.8,
     rooms: 3,
