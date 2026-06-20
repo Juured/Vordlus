@@ -15,6 +15,7 @@ import {
 } from "@/lib/compareStore";
 import { computeScores } from "@/lib/scores";
 import { EMPTY_LIFESTYLE } from "@/lib/lifestyle";
+import PropertyMap from "@/components/PropertyMap";
 
 const MAX_SLOTS = 5;
 
