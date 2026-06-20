@@ -87,7 +87,9 @@ RUN apt-get update \
 
 # Non-root for Coolify.
 RUN groupadd --system --gid 1001 vordlus \
-    && useradd --system --uid 1001 --gid vordlus vordlus
+    && useradd --system --uid 1001 --gid vordlus vordlus \
+    && mkdir -p /home/vordlus /data \
+    && chown -R vordlus:vordlus /home/vordlus /data
 
 # Bring in the venv from the builder.
 COPY --from=builder /opt/venv /opt/venv
@@ -95,11 +97,17 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 COPY --chown=vordlus:vordlus . /app
 
-USER vordlus
-
 # Crawl4AI downloads Chromium on first run. Pre-install at image build
 # time so the first /scrape call is fast. Uses ~170MB of image size.
-RUN python -m playwright install chromium
+# Run as root (playwright needs /root/.cache) then drop privileges.
+RUN python -m playwright install chromium && \
+    chown -R vordlus:vordlus /home/vordlus /data
+
+# SQLite DB lives here — mount a Coolify volume at /data to persist
+# listings and price_history across container restarts.
+ENV DB_PATH=/data/vordlus.db
+
+USER vordlus
 
 EXPOSE 3000
 
