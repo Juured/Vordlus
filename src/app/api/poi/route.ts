@@ -22,7 +22,8 @@ const OVERPASS_MIRRORS = [
 // flat union of all categories into per-category counts.
 const POI_RULES: { key: string; match: (t: Record<string, string>) => boolean }[] = [
   { key: "park",       match: (t) => t.leisure === "park" },
-  { key: "school",     match: (t) => t.amenity === "school" || t.amenity === "kindergarten" || t.amenity === "college" },
+  { key: "school",     match: (t) => t.amenity === "school" || t.amenity === "college" },
+  { key: "kindergarten", match: (t) => t.amenity === "kindergarten" },
   { key: "gym",        match: (t) => t.leisure === "fitness_centre" || t.sport === "gym" },
   { key: "transit",    match: (t) => t.public_transport === "platform" || t.highway === "bus_stop" || t.railway === "station" || t.railway === "tram_stop" },
   { key: "shop",       match: (t) => t.shop === "supermarket" || t.shop === "convenience" },
@@ -52,7 +53,9 @@ export async function GET(req: NextRequest) {
   // bucket them ourselves. ~3-8s on a fresh request.
   const q = `[out:json][timeout:15];
 (nwr["leisure"="park"](around:${radius},${lat},${lon});
-nwr["amenity"~"^(school|kindergarten|college)$"](around:${radius},${lat},${lon});
+nwr["amenity"="school"](around:${radius},${lat},${lon});
+nwr["amenity"="kindergarten"](around:${radius},${lat},${lon});
+nwr["amenity"="college"](around:${radius},${lat},${lon});
 nwr["leisure"="fitness_centre"](around:${radius},${lat},${lon});
 nwr["sport"="gym"](around:${radius},${lat},${lon});
 nwr["public_transport"="platform"](around:${radius},${lat},${lon});
