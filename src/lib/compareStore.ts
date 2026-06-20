@@ -28,6 +28,8 @@ export type CompareColumn = {
   planeeringud: { name: string; maxFloors: number }[] | null;
   listingPhoto?: string | null;
   enrichment: EnrichmentData | null;
+  lat?: number | null;
+  lon?: number | null;
   scores: PropertyScores; // 4-score evaluation
   fetchedAt: number;
   errors: string[];

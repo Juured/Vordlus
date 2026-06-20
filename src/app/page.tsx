@@ -15,6 +15,7 @@ import {
   type CompareColumn,
 } from "@/lib/compareStore";
 import { DEMO_LISTINGS } from "@/lib/demoData";
+import { estLambertToWgs84 } from "@/lib/estdata";
 import { computeScores } from "@/lib/scores";
 import { EMPTY_LIFESTYLE } from "@/lib/lifestyle";
 import dynamic from "next/dynamic";
@@ -219,6 +220,11 @@ export default function Home() {
         e = e ? { ...e, energy: [patchedEnergy, ...(e.energy?.slice(1) ?? [])] } : null;
       }
       const lifestyle = (j.lifestyle as CompareColumn["lifestyle"]) ?? EMPTY_LIFESTYLE;
+      const coord = cad
+        ? estLambertToWgs84(cad.tsentroid_x, cad.tsentroid_y)
+        : j.picked
+        ? estLambertToWgs84(j.picked.viitepunkt_l, j.picked.viitepunkt_b)
+        : null;
       const newCol: CompareColumn = {
         id: makeId(),
         input: {
@@ -246,6 +252,8 @@ export default function Home() {
         // may overwrite with live scrape data once the Coolify service
         // is deployed.
         enrichment: manual?.prePopulatedEnrichment ?? null,
+        lat: coord ? coord[1] : null,
+        lon: coord ? coord[0] : null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
           c: cad,
@@ -582,13 +590,11 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-               <ComparisonTable columns={filteredWithScores} />
-
-<div className="mt-8">
-  <PropertyMap />
-</div>
-
-</>
+                <ComparisonTable columns={filteredWithScores} />
+                <div className="mt-8">
+                  <PropertyMap columns={filteredWithScores} />
+                </div>
+              </>
             )}
           </div>
         </div>
