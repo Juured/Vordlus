@@ -27,6 +27,7 @@ type ResolveResponse = {
   transit?: { stopCount: number; frequency: number } | null;
   radon?: { class: "madal" | "keskmine" | "korge" } | null;
   flood?: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
+  planeeringud?: { name: string; maxFloors: number }[] | null;
   errors: string[];
 };
 
@@ -169,7 +170,7 @@ export default function Home() {
         transit: j.transit ?? null,
         radon: j.radon ?? null,
         flood: j.flood ?? null,
-        planeeringud: null,
+        planeeringud: j.planeeringud ?? null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
           c: cad,
@@ -290,9 +291,9 @@ export default function Home() {
           </h1>
           <p className="mt-4 text-muted max-w-prose text-[15px]">
             Sisesta kuni viis aadressi, kv.ee linki või katastri numbrit. Meie koostame
-            kinnistu, ehitise ja energiamärgise andmed kõrvuti ning anname nelja skoori:
+            kinnistu, ehitise ja energiamärgise andmed kõrvuti ning anname viis skoori:
             Fair Value (hind vs turu mediaan), TCO (elamiskulud), Appreciation
-            (tuleviku väärtus) ja Elustiil (naabruskond).
+            (tuleviku väärtus), Elustiil (naabruskond) ja Rohelaen (rohelaenu sobivus).
           </p>
         </div>
       </section>
@@ -384,7 +385,7 @@ export default function Home() {
             avalike andmete peale (In-AKS, Maa-amet X-tee, Ehitisregister, OpenStreetMap). Mitte
             õigus- ega finantsnõustamine.
           </p>
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">v0.2 · 2026</p>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-faint">v2.0 · 2026</p>
         </div>
       </footer>
     </>

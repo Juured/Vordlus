@@ -1,6 +1,5 @@
 "use client";
 
-import proj4 from "proj4";
 import { type CompareColumn } from "@/lib/compareStore";
 import { SCORE_LABELS, type ScoreKey } from "@/lib/scores";
 import { ageOf, fmtM2, fmtMoney, fmtYear } from "@/lib/estdata";
@@ -9,18 +8,6 @@ import { AvmBar } from "@/components/AvmBar";
 import { Monogram } from "@/components/Monogram";
 import { RiskBadges } from "@/components/RiskBadges";
 import { PlaneeringuRadar } from "@/components/PlaneeringuRadar";
-
-proj4.defs(
-  "EPSG:3301",
-  "+proj=lcc +lat_0=57.5175539305556 +lon_0=24 +lat_1=59.3333333333333 +lat_2=58 +x_0=500000 +y_0=6375000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs",
-);
-
-function wgs84FromCad(tsentroid_x?: number | null, tsentroid_y?: number | null): { lat: number; lon: number } | null {
-  if (tsentroid_x == null || tsentroid_y == null) return null;
-  const [lon, lat] = proj4("EPSG:3301", "EPSG:4326", [tsentroid_x, tsentroid_y]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  return { lat, lon };
-}
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -40,7 +27,7 @@ const IconDoor = <Icon d="M3 22h18M5 22V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v18M14 1
 const IconRuler = <Icon d="M21 16V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM7 10h.01M11 10h.01M15 10h.01M7 14h.01M11 14h.01M15 14h.01" />;
 const IconSun = <Icon d="M12 3v1M12 20v1M3 12h1M20 12h1M5.6 5.6l.7.7M17.7 17.7l.7.7M5.6 18.4l.7-.7M17.7 6.3l.7-.7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />;
 
-function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onRemove, lat, lon }: {
+function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onRemove }: {
   id: string;
   address: string;
   buildingType: string | null | undefined;
@@ -48,8 +35,6 @@ function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onR
   overall: number;
   overallLabel: string;
   onRemove: () => void;
-  lat?: number | null;
-  lon?: number | null;
 }) {
   return (
     <Monogram
@@ -59,8 +44,6 @@ function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onR
       overallScore={overall}
       overallLabel={overallLabel}
       onClose={onRemove}
-      lat={lat}
-      lon={lon}
     />
   );
 }
@@ -188,7 +171,7 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
 
   return (
     <div className="bg-white border border-rule overflow-hidden flex flex-col">
-      {/* Monogram or orthophoto (replaces photo) */}
+      {/* Monogram (typographic identity for the property) */}
       <div className="relative">
         <PhotoFor
           id={column.id}
@@ -198,8 +181,6 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
           overall={overall}
           overallLabel={overallLabel}
           onRemove={onRemove}
-          lat={wgs84FromCad(c?.tsentroid_x, c?.tsentroid_y)?.lat ?? null}
-          lon={wgs84FromCad(c?.tsentroid_x, c?.tsentroid_y)?.lon ?? null}
         />
       </div>
 

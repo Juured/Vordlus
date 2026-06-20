@@ -7,8 +7,6 @@ type Props = {
   overallScore: number;
   overallLabel: string;
   onClose?: () => void;
-  lat?: number | null;
-  lon?: number | null;
 };
 
 const MULTI = ["korterelamu", "korter"];
@@ -33,33 +31,17 @@ function deriveGlyph(address: string): string {
   return letter + (numTok ?? "");
 }
 
-export function Monogram({ address, buildingType, index, overallScore, overallLabel, onClose, lat, lon }: Props) {
+export function Monogram({ address, buildingType, index, overallScore, overallLabel, onClose }: Props) {
   const isMulti = !!buildingType && MULTI.some((m) => buildingType.toLowerCase().includes(m));
-  const hasPhoto = typeof lat === "number" && typeof lon === "number";
-  const photoSrc = hasPhoto ? `/api/orthophoto?lat=${lat}&lon=${lon}` : null;
   return (
-    <div className={`relative w-full aspect-[4/3] ${isMulti ? "photo-cool" : "photo-warm"} overflow-hidden`}>
-      {photoSrc && (
-        // Orthophoto from Maa-amet (server-side WMS render via /api/orthophoto).
-        // If the fetch fails, the underlying gradient stays visible.
-        <img
-          src={photoSrc}
-          alt={address}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={(e) => { (e.currentTarget.style.display = "none"); }}
-        />
-      )}
-      {!photoSrc && (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 grid place-items-center"
-          style={{ fontFamily: '"Fraunces", ui-serif, Georgia, serif', fontWeight: 300, fontSize: 96, lineHeight: 1, color: "#1A1A1A", opacity: 0.92, letterSpacing: "-0.04em" }}
-        >
-          {deriveGlyph(address)}
-        </div>
-      )}
+    <div className={`relative w-full aspect-[4/3] ${isMulti ? "photo-cool" : "photo-warm"}`}>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 grid place-items-center"
+        style={{ fontFamily: '"Fraunces", ui-serif, Georgia, serif', fontWeight: 300, fontSize: 96, lineHeight: 1, color: "#1A1A1A", opacity: 0.92, letterSpacing: "-0.04em" }}
+      >
+        {deriveGlyph(address)}
+      </div>
       <span className="absolute top-2 left-2 text-[10px] font-semibold tracking-wider uppercase bg-white/90 backdrop-blur px-2 py-0.5 text-ink">
         #{String(index + 1).padStart(2, "0")}
       </span>

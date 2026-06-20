@@ -12,6 +12,7 @@ export type Resolved = {
   transit?: { stopCount: number; frequency: number } | null;
   radon?: { class: "madal" | "keskmine" | "korge" } | null;
   flood?: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
+  planeeringud?: { name: string; maxFloors: number }[] | null;
   errors: string[];
 };
 
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
     transit: null,
     radon: null,
     flood: null,
+    planeeringud: null,
     errors,
   };
 
@@ -200,26 +202,29 @@ export async function POST(req: NextRequest) {
       out.cadastre.estprop_median_eur_m2 = estpropMedianFor(omv);
     }
 
-    // Fetch in parallel: POI (Overpass → huvipunktid), transit, radon, flood.
-    // Each fetch is wrapped in try/catch — a single failure does not block
-    // the others.
+    // Fetch in parallel: POI (Overpass → huvipunktid), transit, radon, flood,
+    // planeeringud (PLANK). Each fetch is wrapped in try/catch — a single
+    // failure does not block the others.
     const wgs = wgs84FromCad(out.cadastre);
     if (wgs) {
-      const [poi, transit, radon, flood] = await Promise.all([
+      const [poi, transit, radon, flood, planeeringud] = await Promise.all([
         fetchPOI(req, wgs[1], wgs[0]),
         fetchJson<{ stopCount: number; frequency: number }>(req, `/api/transit?lat=${wgs[1]}&lon=${wgs[0]}&radius=1000`),
         fetchJson<{ class: string }>(req, `/api/radon?lat=${wgs[1]}&lon=${wgs[0]}`),
         fetchJson<{ zone: string }>(req, `/api/flood?lat=${wgs[1]}&lon=${wgs[0]}`),
+        fetchJson<{ plans: { name: string; maxFloors: number }[] }>(req, `/api/planeeringud?lat=${wgs[1]}&lon=${wgs[0]}&radius=500`),
       ]);
       out.lifestyle = poi ?? EMPTY_LIFESTYLE;
       out.transit = transit;
       out.radon = radon ? { class: radon.class as "madal" | "keskmine" | "korge" } : null;
       out.flood = flood ? { zone: flood.zone as "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } : null;
+      out.planeeringud = planeeringud ? planeeringud.plans : null;
     } else {
       out.lifestyle = EMPTY_LIFESTYLE;
       out.transit = null;
       out.radon = null;
       out.flood = null;
+      out.planeeringud = null;
     }
   } catch (e) {
     errors.push(`Üldine: ${(e as Error).message}`);
