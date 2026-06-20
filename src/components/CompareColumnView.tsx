@@ -4,6 +4,7 @@ import { type CompareColumn } from "@/lib/compareStore";
 import { SCORE_LABELS, type ScoreKey } from "@/lib/scores";
 import { ageOf, fmtM2, fmtMoney, fmtYear } from "@/lib/estdata";
 import { LifestyleMatrix } from "@/components/LifestyleMatrix";
+import { AvmBar } from "@/components/AvmBar";
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -246,6 +247,13 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
             </span>
           )}
         </p>
+        {price != null && areaM2 && (
+          <AvmBar
+            pricePerM2={pricePerM2}
+            baseline={column.scores.fairValue.baseline}
+            baselineSource={column.scores.fairValue.baselineSource}
+          />
+        )}
         {price == null && (
           <p className="mt-1 text-[10px] text-faint">
             Klõpsa lahtrile #{String(index + 1).padStart(2, "0")} ja sisesta kuulutuse hind
