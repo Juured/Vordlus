@@ -2,6 +2,16 @@
 
 import type { CompareColumn } from "@/lib/compareStore";
 
+// Building type detection — used to decide whether to show user-input
+// area/rooms or fall back to the building's total (which for a
+// korterelamu is not what the user wants).
+const MULTI = ["korterelamu", "korter"];
+
+function isMultiUnit(c: CompareColumn): boolean {
+  const n = c.ehr?.nimetus?.toLowerCase() ?? "";
+  return MULTI.some((m) => n.includes(m));
+}
+
 const ROWS: { label: string; pick: (c: CompareColumn) => string | number | null }[] = [
   { label: "Aadress", pick: (c) => c.cadastre?.tais_aadress || c.ehr?.taisaadress || c.input.raw },
   { label: "Üldskoor", pick: (c) => c.scores.overall > 0 ? c.scores.overall : 0 },
@@ -10,8 +20,20 @@ const ROWS: { label: string; pick: (c: CompareColumn) => string | number | null 
   { label: "Väärtuse kasv", pick: (c) => c.scores.appreciation.score > 0 ? `${c.scores.appreciation.score}/5` : "—" },
   { label: "Elustiil", pick: (c) => c.scores.lifestyle.score > 0 ? `${c.scores.lifestyle.score}/5` : "—" },
   { label: "Rohelaen", pick: (c) => c.scores.greenMortgage.score > 0 ? `${c.scores.greenMortgage.score}/5` : "—" },
-  { label: "Toad", pick: (c) => c.ehr?.tubadeArv ?? "—" },
-  { label: "Pindala", pick: (c) => c.ehr?.suletud_netopind ? `${c.ehr.suletud_netopind} m²` : "—" },
+  // Rooms: prefer user input, fall back to EHR building total for single-unit.
+  { label: "Toad", pick: (c) => {
+      if (c.input.manualRooms != null) return c.input.manualRooms;
+      if (isMultiUnit(c)) return "—"; // can't pick a single apartment's room count
+      return c.ehr?.tubadeArv ?? "—";
+    }
+  },
+  // Area: prefer user input. For korterelamu, hide the building total.
+  { label: "Pindala", pick: (c) => {
+      if (c.input.manualArea != null) return `${c.input.manualArea} m²`;
+      if (isMultiUnit(c)) return "—";
+      return c.ehr?.suletud_netopind ? `${c.ehr.suletud_netopind} m²` : "—";
+    }
+  },
   { label: "Esmakasutus", pick: (c) => c.ehr?.esmaneKasutus?.slice(0, 4) ?? "—" },
   { label: "Energiamärgis", pick: (c) => c.ehr?.energy[0]?.energiaKlass ?? "—" },
   { label: "Planeeringu radar", pick: (c) => c.planeeringud ? `${c.planeeringud.length} plaan(i)` : "—" },
