@@ -9,8 +9,23 @@ export type Resolved = {
   cadastre: CadastreRecord | null;
   ehr: EhrBuilding | null;
   lifestyle: Lifestyle;
+  transit?: { stopCount: number; frequency: number } | null;
+  radon?: { class: "madal" | "keskmine" | "korge" } | null;
+  flood?: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
   errors: string[];
 };
+
+async function fetchJson<T>(path: string): Promise<T | null> {
+  try {
+    const u = new URL(path, "http://x");
+    const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j?.data ?? null) as T | null;
+  } catch {
+    return null;
+  }
+}
 
 // Fetch lifestyle POI data for a given WGS84 coord (graceful on failure)
 async function fetchPOI(lat: number, lon: number): Promise<Lifestyle | null> {
@@ -81,6 +96,9 @@ export async function POST(req: NextRequest) {
     cadastre: null,
     ehr: null,
     lifestyle: EMPTY_LIFESTYLE,
+    transit: null,
+    radon: null,
+    flood: null,
     errors,
   };
 
@@ -177,13 +195,26 @@ export async function POST(req: NextRequest) {
       out.cadastre.estprop_median_eur_m2 = estpropMedianFor(omv);
     }
 
-    // Lifestyle: real POI data if we have a WGS84 point; otherwise explicit missing.
+    // Fetch in parallel: POI (Overpass → huvipunktid), transit, radon, flood.
+    // Each fetch is wrapped in try/catch — a single failure does not block
+    // the others.
     const wgs = wgs84FromCad(out.cadastre);
     if (wgs) {
-      const poi = await fetchPOI(wgs[1], wgs[0]);
+      const [poi, transit, radon, flood] = await Promise.all([
+        fetchPOI(wgs[1], wgs[0]),
+        fetchJson<{ stopCount: number; frequency: number }>(`/api/transit?lat=${wgs[1]}&lon=${wgs[0]}&radius=1000`),
+        fetchJson<{ class: string }>(`/api/radon?lat=${wgs[1]}&lon=${wgs[0]}`),
+        fetchJson<{ zone: string }>(`/api/flood?lat=${wgs[1]}&lon=${wgs[0]}`),
+      ]);
       out.lifestyle = poi ?? EMPTY_LIFESTYLE;
+      out.transit = transit;
+      out.radon = radon ? { class: radon.class as "madal" | "keskmine" | "korge" } : null;
+      out.flood = flood ? { zone: flood.zone as "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } : null;
     } else {
       out.lifestyle = EMPTY_LIFESTYLE;
+      out.transit = null;
+      out.radon = null;
+      out.flood = null;
     }
   } catch (e) {
     errors.push(`Üldine: ${(e as Error).message}`);
