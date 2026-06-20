@@ -13,6 +13,7 @@ import {
   saveCompare,
   type CompareColumn,
 } from "@/lib/compareStore";
+import { DEMO_LISTINGS } from "@/lib/demoData";
 import { computeScores } from "@/lib/scores";
 import { EMPTY_LIFESTYLE } from "@/lib/lifestyle";
 import PropertyMap from "@/components/PropertyMap";
@@ -146,7 +147,7 @@ export default function Home() {
 
   async function resolveSlot(
     raw: string,
-    manual?: { price?: number | null; area?: number | null; rooms?: number | null },
+    manual?: { price?: number | null; area?: number | null; rooms?: number | null; listingPhoto?: string | null },
   ): Promise<{ ok: boolean; error?: string }> {
     if (!raw.trim()) return { ok: false, error: "Sisesta aadress või ID" };
     try {
@@ -167,6 +168,7 @@ export default function Home() {
           manualPrice: manual?.price ?? null,
           manualArea: manual?.area ?? null,
           manualRooms: manual?.rooms ?? null,
+          manualListingPhoto: manual?.listingPhoto ?? null,
         },
         cadastre: cad,
         ehr: e,
@@ -175,7 +177,10 @@ export default function Home() {
         radon: j.radon ?? null,
         flood: j.flood ?? null,
         planeeringud: j.planeeringud ?? null,
-        listingPhoto: j.listingPhoto ?? null,
+        // For the hackathon demo we accept a pre-baked listing photo
+        // (real kv.ee CDN URL) so the Monogram shows the real image.
+        // Otherwise fall back to whatever /api/resolve produced.
+        listingPhoto: manual?.listingPhoto ?? j.listingPhoto ?? null,
         enrichment: null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
@@ -366,24 +371,17 @@ export default function Home() {
 
             {filteredWithScores.length === 0 ? (
               <EmptyState onTryExample={async () => {
-                // Realistic 2025–2026 Estonian listing examples with actual
-                // market prices. These cover three different building types:
-                //   - 70s üksikelamu (single-family, expensive per m²)
-                //   - 60s korterelamu (soviet-era apartment, typical)
-                //   - 30s korterelamu (pre-war, central)
-                const examples: { raw: string; price: number; area: number; rooms: number }[] = [
-                  // Viljandi 47, Nõmme — 199 m² üksikelamu, 1970, D-energy.
-                  // 2026 market ~€420k
-                  { raw: "Viljandi mnt 47, Tallinn", price: 420000, area: 199, rooms: 5 },
-                  // Pärnu mnt 28 — 6-korruseline korterelamu, 1937.
-                  // Typical 2-toaline ~55 m², ~€220k
-                  { raw: "Pärnu mnt 28, Tallinn", price: 220000, area: 55, rooms: 2 },
-                  // Tartu mnt 84a — suur korterelamu Kesklinnas, 1930.
-                  // Typical 3-toaline ~75 m², ~€310k
-                  { raw: "Tartu mnt 84a, Tallinn", price: 310000, area: 75, rooms: 3 },
-                ];
-                for (const ex of examples) {
-                  await resolveSlot(ex.raw, { price: ex.price, area: ex.area, rooms: ex.rooms });
+                // Three real, hand-picked Tallinn listings with verified
+                // kv.ee CDN photos. The story: 3 distinct building types,
+                // 3 districts, 3 price points — shows the comparison axis
+                // doing real work. See src/lib/demoData.ts for sources.
+                for (const ex of DEMO_LISTINGS) {
+                  await resolveSlot(ex.raw, {
+                    price: ex.price,
+                    area: ex.area,
+                    rooms: ex.rooms,
+                    listingPhoto: ex.photos[0] ?? null,
+                  });
                 }
               }} />
             ) : (

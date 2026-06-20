@@ -11,6 +11,7 @@ export type CompareInput = {
   manualPrice?: number | null;
   manualArea?: number | null;
   manualRooms?: number | null;
+  manualListingPhoto?: string | null; // for the hackathon demo only
 };
 
 export type CompareColumn = {
