@@ -1,29 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
+import proj4 from "proj4";
+
+proj4.defs(
+  "EPSG:3301",
+  "+proj=lcc +lat_0=57.5175539305556 +lon_0=24 +lat_1=59.3333333333333 +lat_2=58 +x_0=500000 +y_0=6375000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs",
+);
 
 // Maa-amet orthophoto WMS. Server-side render of a small bbox around
 // the property's WGS84 center. The result is a single aerial photo
 // (not an interactive map) shown as the property's image.
 //
-// Layer of10000 = 10 cm GSD (high-resolution Estonian orthophoto).
+// EESTIFOTO is only published in EPSG:3301 (L-EST97), so we transform
+// the WGS84 center into L-EST97 first, then build the bbox in metres.
 const WMS = "https://kaart.maaamet.ee/wms/fotokaart";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lat = Number(searchParams.get("lat"));
   const lon = Number(searchParams.get("lon"));
-  // 50m half-width = ~25m on each side at 59°N
+  // Half-width in metres. 25m gives a ~50m x 50m patch — a single house.
   const half = Math.min(Math.max(Number(searchParams.get("half") ?? 25), 10), 200);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     return NextResponse.json({ error: "lat ja lon on kohustuslikud" }, { status: 400 });
   }
 
-  // 1° lat ≈ 111 000 m, 1° lon ≈ 111 000 m × cos(lat)
-  const dLat = half / 111_000;
-  const dLon = half / (111_000 * Math.cos((lat * Math.PI) / 180));
-  const minLon = lon - dLon;
-  const minLat = lat - dLat;
-  const maxLon = lon + dLon;
-  const maxLat = lat + dLat;
+  const [x, y] = proj4("EPSG:4326", "EPSG:3301", [lon, lat]);
+  const minX = x - half;
+  const minY = y - half;
+  const maxX = x + half;
+  const maxY = y + half;
 
   const u = new URL(WMS);
   u.searchParams.set("service", "WMS");
@@ -31,14 +36,12 @@ export async function GET(req: NextRequest) {
   u.searchParams.set("request", "GetMap");
   u.searchParams.set("layers", "EESTIFOTO");
   u.searchParams.set("styles", "");
-  u.searchParams.set("bbox", `${minLon},${minLat},${maxLon},${maxLat}`);
-  u.searchParams.set("crs", "EPSG:4326");
+  u.searchParams.set("bbox", `${minX},${minY},${maxX},${maxY}`);
+  u.searchParams.set("crs", "EPSG:3301");
   u.searchParams.set("width", "600");
   u.searchParams.set("height", "450");
   u.searchParams.set("format", "image/jpeg");
   u.searchParams.set("transparent", "false");
-  // No EXCEPTIONS override — the default XML error format is widely
-  // accepted and avoids the WMS rejecting an unknown MIME.
 
   try {
     const r = await fetch(u.toString(), {
@@ -48,7 +51,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `WMS ${r.status}` }, { status: 502 });
     }
     const buf = Buffer.from(await r.arrayBuffer());
-    // WMS error responses are XML, not images — detect and forward as JSON.
+    // WMS error responses are XML — detect and surface as JSON.
     if (buf.length < 200 || buf[0] === 0x3c /* '<' */) {
       const txt = buf.toString("utf8", 0, Math.min(buf.length, 500));
       return NextResponse.json({ error: "WMS error", detail: txt }, { status: 502 });
