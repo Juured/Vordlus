@@ -151,7 +151,11 @@ export default function Home() {
 
   async function resolveSlot(
     raw: string,
-    manual?: { price?: number | null; area?: number | null; rooms?: number | null; listingPhoto?: string | null; listingUrl?: string | null },
+    manual?: {
+      price?: number | null; area?: number | null; rooms?: number | null;
+      listingPhoto?: string | null; listingUrl?: string | null;
+      prePopulatedEnrichment?: CompareColumn["enrichment"];
+    },
   ): Promise<{ ok: boolean; error?: string }> {
     if (!raw.trim()) return { ok: false, error: "Sisesta aadress või ID" };
     try {
@@ -186,7 +190,12 @@ export default function Home() {
         // (real kv.ee CDN URL) so the Monogram shows the real image.
         // Otherwise fall back to whatever /api/resolve produced.
         listingPhoto: manual?.listingPhoto ?? j.listingPhoto ?? null,
-        enrichment: null,
+        // Demo listings pass pre-computed enrichment (price/m², district
+        // benchmark, renovation, energy comparison) so the panel shows
+        // real data immediately. /api/enrich runs in the background and
+        // may overwrite with live scrape data once the Coolify service
+        // is deployed.
+        enrichment: manual?.prePopulatedEnrichment ?? null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
           c: cad,
@@ -258,6 +267,54 @@ export default function Home() {
     } catch {
       /* swallow — enrichment is best-effort */
     }
+  }
+
+  // Build a pre-populated EnrichmentData object from a DemoListing. Used
+  // by the "Lae 3 näidet" button so the enrichment panel shows real
+  // values immediately, without waiting for the Coolify scrape service
+  // to come online. /api/enrich will still fire in the background and
+  // fill in the remaining scrape-dependent blocks (price history, days
+  // on market, duplicates, etc.) once the service is up.
+  function buildDemoEnrichment(ex: typeof DEMO_LISTINGS[number]): CompareColumn["enrichment"] {
+    const d = ex.demoEnrichment;
+    const pricePerM2 = Math.round(ex.price / ex.area);
+    return {
+      pricePerM2,
+      districtBenchmark: d?.estpropMedianEurM2 != null
+        ? { districtMedian: d.estpropMedianEurM2, districtName: ex.district, nationalPercentile: d.nationalPercentile ?? 50 }
+        : null,
+      renovation: (() => {
+        if (ex.yearBuilt == null && !ex.energyClass) return { label: "Andmed puuduvad", signals: [] };
+        const eff = ["A", "B", "C"].includes(ex.energyClass ?? "");
+        const ineff = ["F", "G", "H"].includes(ex.energyClass ?? "");
+        let label = "";
+        const signals: string[] = [];
+        if (ex.yearBuilt != null && ex.yearBuilt < 1980) {
+          label = eff
+            ? "Renoveeritud (energia­märgis A-C, ehitatud enne 1980)"
+            : "Algne, ei viita renoveerimisele";
+        } else if (ex.yearBuilt != null && ex.yearBuilt < 2000) {
+          label = eff ? "Renoveeritud 90ndate hoone" : "Keskmine vanus, energiamärgis viitab renoveerimisvajadusele";
+        } else if (ex.yearBuilt != null) {
+          label = eff ? "Kaasaegne, energiatõhus" : ineff ? "Kaasaegne, kuid energiakulukas" : "Kaasaegne";
+        }
+        if (ex.energyClass && ["A", "B"].includes(ex.energyClass)) signals.push("Energiamärgis A/B");
+        if (ex.yearBuilt != null && ex.yearBuilt >= 2010) signals.push("Uus ehitis");
+        if (ex.yearBuilt != null && ex.yearBuilt < 1960) signals.push("Ajalooline hoone");
+        return { label: label || "Andmed puuduvad", signals };
+      })(),
+      energyComparison: ex.energyClass
+        ? { thisClass: ex.energyClass, districtMode: d?.districtAverageEurM2 ? "C" : null, nationalMode: d?.nationalEnergyMode ?? "C" }
+        : null,
+      // Scrape-dependent blocks stay null until the Coolify service is up
+      deviationFromComparables: null,
+      priceHistory: null,
+      daysOnMarket: null,
+      duplicates: null,
+      completeness: null,
+      rentYield: null,
+      liquidity: null,
+    };
   }
 
   function removeColumn(id: string) {
@@ -387,6 +444,7 @@ export default function Home() {
                     rooms: ex.rooms,
                     listingPhoto: ex.photos[0] ?? null,
                     listingUrl: ex.listingUrl,
+                    prePopulatedEnrichment: buildDemoEnrichment(ex),
                   });
                 }
               }} />
