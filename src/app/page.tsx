@@ -51,9 +51,16 @@ export default function Home() {
     if (shared) {
       const inputs = decodeShareUrl(shared);
       if (inputs.length > 0) {
-        const initial: CompareColumn[] = inputs.slice(0, MAX_SLOTS).map((raw) => ({
+        const initial: CompareColumn[] = inputs.slice(0, MAX_SLOTS).map((s) => ({
           id: makeId(),
-          input: { raw },
+          input: {
+            raw: s.raw,
+            manualPrice: s.price ?? null,
+            manualArea: s.area ?? null,
+            manualRooms: s.rooms ?? null,
+            manualListingPhoto: s.listingPhoto ?? null,
+            manualListingUrl: s.listingUrl ?? null,
+          },
           cadastre: null,
           ehr: null,
           lifestyle: EMPTY_LIFESTYLE,
@@ -61,7 +68,7 @@ export default function Home() {
           radon: null,
           flood: null,
           planeeringud: null,
-          listingPhoto: null,
+          listingPhoto: s.listingPhoto ?? null,
           enrichment: null,
           scores: defaultScores(),
           fetchedAt: 0,
@@ -70,16 +77,22 @@ export default function Home() {
         setColumns(initial);
         setReady(true);
         // Strip ?c= from the URL so reloads don't re-fetch the share.
-        // Then kick off resolveSlot for each loaded input — the share URL
-        // only encodes the raw strings, not the resolved data, so the
-        // recipient needs to fetch it themselves.
+        // Then kick off resolveSlot for each loaded input so the
+        // recipient gets the same public data (EHR, lifestyle, etc.)
+        // that the sender had.
         try {
           const clean = new URL(window.location.href);
           clean.searchParams.delete("c");
           window.history.replaceState({}, "", clean.toString());
         } catch {}
         for (const col of initial) {
-          void resolveSlot(col.input.raw);
+          void resolveSlot(col.input.raw, {
+            price: col.input.manualPrice ?? undefined,
+            area: col.input.manualArea ?? undefined,
+            rooms: col.input.manualRooms ?? undefined,
+            listingPhoto: col.input.manualListingPhoto ?? undefined,
+            listingUrl: col.input.manualListingUrl ?? undefined,
+          });
         }
         return;
       }

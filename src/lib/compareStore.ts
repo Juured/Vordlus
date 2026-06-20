@@ -57,24 +57,57 @@ export function makeId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-// URL share: encode just the raw inputs as base64-JSON.
-// ?c=<base64> in the URL → restored on load.
+// URL share: encode each column's raw input + manual fields as base64-JSON.
+// ?c=<base64> in the URL → restored on load. We only carry the raw string
+// plus the manual fields (price/area/rooms/listingPhoto/listingUrl) so
+// that the demo's manual enhancements survive the share.
+export type ShareableColumn = {
+  raw: string;
+  price?: number | null;
+  area?: number | null;
+  rooms?: number | null;
+  listingPhoto?: string | null;
+  listingUrl?: string | null;
+};
+
 export function encodeShareUrl(cols: CompareColumn[]): string {
-  const inputs = cols.map((c) => c.input.raw);
+  const inputs: ShareableColumn[] = cols.map((c) => ({
+    raw: c.input.raw,
+    price: c.input.manualPrice ?? null,
+    area: c.input.manualArea ?? null,
+    rooms: c.input.manualRooms ?? null,
+    listingPhoto: c.input.manualListingPhoto ?? null,
+    listingUrl: c.input.manualListingUrl ?? null,
+  }));
   if (inputs.length === 0) return "";
   const json = JSON.stringify(inputs);
   if (typeof btoa === "function") return btoa(unescape(encodeURIComponent(json)));
   return Buffer.from(json, "utf-8").toString("base64");
 }
 
-export function decodeShareUrl(b64: string): string[] {
+export function decodeShareUrl(b64: string): ShareableColumn[] {
   try {
     const json =
       typeof atob === "function"
         ? decodeURIComponent(escape(atob(b64)))
         : Buffer.from(b64, "base64").toString("utf-8");
     const arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+    if (!Array.isArray(arr)) return [];
+    // Backward compat: if items are plain strings, treat as `{raw}`.
+    return arr.map((x): ShareableColumn => {
+      if (typeof x === "string") return { raw: x };
+      if (x && typeof x === "object" && typeof x.raw === "string") {
+        return {
+          raw: x.raw,
+          price: typeof x.price === "number" ? x.price : null,
+          area: typeof x.area === "number" ? x.area : null,
+          rooms: typeof x.rooms === "number" ? x.rooms : null,
+          listingPhoto: typeof x.listingPhoto === "string" ? x.listingPhoto : null,
+          listingUrl: typeof x.listingUrl === "string" ? x.listingUrl : null,
+        };
+      }
+      return { raw: "" };
+    }).filter((c) => c.raw.length > 0);
   } catch {
     return [];
   }
