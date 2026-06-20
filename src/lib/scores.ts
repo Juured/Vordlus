@@ -1,9 +1,10 @@
-// Four-score evaluation for property comparison.
+// Five-score evaluation for property comparison.
 //
 //   1. Fair Value       — is the asking price reasonable vs market?
 //   2. TCO              — Total Cost of Ownership (energy + heating)
 //   3. Appreciation     — future value outlook (build year + energy class + city)
 //   4. Lifestyle Match  — neighborhood POI density (parks, schools, transit, etc.)
+//   5. Green Mortgage   — suitability for a rohelaen (energy class + heating + monthly cost)
 //
 // Each score is 1–5 (integer + label).
 // The numeric value is meaningful for both visual rating and filtering
@@ -12,7 +13,7 @@
 import type { CadastreRecord, EhrBuilding } from "./estdata";
 import type { Lifestyle } from "./lifestyle";
 
-export type ScoreKey = "fairValue" | "tco" | "appreciation" | "lifestyle";
+export type ScoreKey = "fairValue" | "tco" | "appreciation" | "lifestyle" | "greenMortgage";
 
 export const SCORE_LABELS: Record<ScoreKey, { title: string; subtitle: string; oneStar: string; fiveStar: string }> = {
   fairValue: {
@@ -38,6 +39,12 @@ export const SCORE_LABELS: Record<ScoreKey, { title: string; subtitle: string; o
     subtitle: "Lähedal: park, kool, transport",
     oneStar: "tühi piirkond",
     fiveStar: "kõik lähedal",
+  },
+  greenMortgage: {
+    title: "Rohelaen",
+    subtitle: "Sobivus rohelaenuks",
+    oneStar: "ei sobi rohelaenuks",
+    fiveStar: "rohelaen kuni 90% LTV",
   },
 };
 
@@ -225,13 +232,41 @@ export function lifestyleScore(l: Lifestyle): { score: number; top: { key: keyof
   return { score, top, reason };
 }
 
-// ===== Combined: compute all four scores for a property =====
+// ===== 5. Green Mortgage Suitability =====
+// Estonian banks offer "rohelaen" (green mortgage) with better terms
+// (lower rate, up to 90% LTV) for energy-efficient homes. Heuristic:
+//   - Energy class is the primary signal (A/B=5, C=4, D=3, E/F=2, G/H=1)
+//   - Fossil-fuel heating (oil/gas) penalizes by 1
+//   - High monthly cost (>250 EUR) penalizes by 1
+//   - Missing energy class → score 0, neutral tone
+export function greenMortgageScore(
+  energyKlass: string | null,
+  heating: string | null,
+  monthlyEur: number | null,
+): { score: number; tone: "good" | "warn" | "bad" | "neutral"; reason: string } {
+  if (!energyKlass) {
+    return { score: 0, tone: "neutral", reason: "andmed puuduvad" };
+  }
+  const baseScore: Record<string, number> = { A: 5, B: 5, C: 4, D: 3, E: 2, F: 2, G: 1, H: 1 };
+  let score = baseScore[energyKlass] ?? 3;
+  if (heating) {
+    const h = heating.toLowerCase();
+    if (h.includes("õli") || h.includes("gaas")) score = Math.max(1, score - 1);
+  }
+  if (monthlyEur != null && monthlyEur > 250) score = Math.max(1, score - 1);
+  const tone: "good" | "warn" | "bad" | "neutral" = score >= 4 ? "good" : score >= 3 ? "warn" : score >= 1 ? "bad" : "neutral";
+  const reason = `Energiamärgis ${energyKlass}${heating ? `, ${heating.toLowerCase()}` : ""}${monthlyEur ? ` ~€${Math.round(monthlyEur)} / kk` : ""}`;
+  return { score, tone, reason };
+}
+
+// ===== Combined: compute all five scores for a property =====
 
 export type PropertyScores = {
   fairValue: ReturnType<typeof fairValueScore>;
   tco: ReturnType<typeof tcoScore>;
   appreciation: ReturnType<typeof appreciationScore>;
   lifestyle: ReturnType<typeof lifestyleScore>;
+  greenMortgage: ReturnType<typeof greenMortgageScore>;
   // Simple average for an "overall" badge
   overall: number;
   overallLabel: string;
@@ -264,9 +299,10 @@ export function computeScores(opts: {
   const tco = tcoScore(energy?.energiaKlass ?? null, energy?.energiaKaalKasutus ? Number(energy.energiaKaalKasutus) : null, tcoArea);
   const appreciation = appreciationScore(buildYear, energy?.energiaKlass ?? null);
   const lifestyleS = lifestyleScore(lifestyle);
+  const greenMortgage = greenMortgageScore(energy?.energiaKlass ?? null, energy?.kytteTyypTxt ?? null, null);
 
   // Overall: weighted average (lifestyle counts more for buyers, fairValue counts more for investors)
-  const vals = [fairValue.score, tco.score, appreciation.score, lifestyleS.score].filter((s) => s > 0);
+  const vals = [fairValue.score, tco.score, appreciation.score, lifestyleS.score, greenMortgage.score].filter((s) => s > 0);
   const overall = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   const overallLabel =
     overall >= 4.5
@@ -281,5 +317,5 @@ export function computeScores(opts: {
               ? "halb"
               : "andmed puuduvad";
 
-  return { fairValue, tco, appreciation, lifestyle: lifestyleS, overall, overallLabel };
+  return { fairValue, tco, appreciation, lifestyle: lifestyleS, greenMortgage, overall, overallLabel };
 }

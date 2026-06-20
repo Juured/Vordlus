@@ -159,13 +159,14 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
   // Whether the user still owes us data
   const needsManual = price == null || (!hasManualArea && unitKind !== "single");
 
-  // Build the 4 scores
-  const { fairValue, tco, appreciation, lifestyle, overall, overallLabel } = column.scores;
+  // Build the 5 scores
+  const { fairValue, tco, appreciation, lifestyle, greenMortgage, overall, overallLabel } = column.scores;
   const scoreRows: { key: ScoreKey; value: number; reason: string; tone: "good" | "warn" | "bad" | "neutral" }[] = [
     { key: "fairValue", value: fairValue.score, reason: fairValue.reason, tone: fairValue.score >= 4 ? "good" : fairValue.score <= 2 ? "bad" : "neutral" },
     { key: "tco", value: tco.score, reason: tco.reason, tone: tco.score >= 4 ? "good" : tco.score <= 2 ? "bad" : "neutral" },
     { key: "appreciation", value: appreciation.score, reason: appreciation.reason, tone: appreciation.score >= 4 ? "good" : appreciation.score <= 2 ? "bad" : "neutral" },
     { key: "lifestyle", value: lifestyle.score, reason: lifestyle.reason, tone: lifestyle.score >= 4 ? "good" : lifestyle.score <= 2 ? "bad" : "neutral" },
+    { key: "greenMortgage", value: greenMortgage.score, reason: greenMortgage.reason, tone: greenMortgage.tone },
   ];
 
   return (
@@ -266,7 +267,7 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
         )}
       </div>
 
-      {/* The 4 scores — the comparison core */}
+      {/* The 5 scores — the comparison core */}
       <div className="px-4 pb-4">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-2.5">Skoorid</p>
         <ul className="space-y-2">
