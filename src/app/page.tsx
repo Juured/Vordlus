@@ -105,6 +105,28 @@ export default function Home() {
     setReady(true);
   }, []);
 
+  // Auto-resolve the demo listings on first visit so the page opens with
+  // "active" listings instead of the empty state. Triggered only when
+  // there's no shared URL and no localStorage data. The "Lae 3 näidet"
+  // button in EmptyState handles re-loading after the user clears.
+  const [demosBootstrapped, setDemosBootstrapped] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    if (demosBootstrapped) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("c")) {
+      setDemosBootstrapped(true);
+      return;
+    }
+    if (loadCompare().length > 0) {
+      setDemosBootstrapped(true);
+      return;
+    }
+    setDemosBootstrapped(true);
+    void loadDemos();
+  }, [ready, demosBootstrapped]);
+
   useEffect(() => {
     if (!ready) return;
     saveCompare(columns);
@@ -436,6 +458,22 @@ export default function Home() {
     };
   }
 
+  // Resolve all demo listings through the same pipeline the "Lae 3 näidet"
+  // button uses. Called from both the auto-load effect and the EmptyState.
+  async function loadDemos() {
+    for (const ex of DEMO_LISTINGS) {
+      await resolveSlot(ex.raw, {
+        price: ex.price,
+        area: ex.area,
+        rooms: ex.rooms,
+        listingPhoto: ex.photos[0] ?? null,
+        listingUrl: ex.listingUrl,
+        prePopulatedEnrichment: buildDemoEnrichment(ex),
+        ehrEnergyClass: ex.energyClass ?? null,
+      });
+    }
+  }
+
   function removeColumn(id: string) {
     setColumns((prev) => prev.filter((c) => c.id !== id));
   }
@@ -546,23 +584,7 @@ export default function Home() {
             </div>
 
             {filteredWithScores.length === 0 ? (
-              <EmptyState onTryExample={async () => {
-                // Three real, hand-picked Tallinn listings with verified
-                // kv.ee CDN photos. The story: 3 distinct building types,
-                // 3 districts, 3 price points — shows the comparison axis
-                // doing real work. See src/lib/demoData.ts for sources.
-                for (const ex of DEMO_LISTINGS) {
-                  await resolveSlot(ex.raw, {
-                    price: ex.price,
-                    area: ex.area,
-                    rooms: ex.rooms,
-                    listingPhoto: ex.photos[0] ?? null,
-                    listingUrl: ex.listingUrl,
-                    prePopulatedEnrichment: buildDemoEnrichment(ex),
-                    ehrEnergyClass: ex.energyClass ?? null,
-                  });
-                }
-              }} />
+              <EmptyState onTryExample={loadDemos} />
             ) : (
               <>
                 <div className="flex items-baseline justify-between mb-4">
