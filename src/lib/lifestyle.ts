@@ -57,19 +57,13 @@ function deterministic(c: CadastreRecord | null, e: EhrBuilding | null): Lifesty
 }
 
 export function lifestyleFromPOI(
-  poi: Record<string, { count: number; stars: number; label: string }>,
+  poi: Partial<Record<LifestyleKey, { count: number; stars: number; label: string }>>,
 ): Lifestyle {
-  const k: LifestyleKey[] = ["park", "school", "gym", "transit", "shop", "cafe", "restaurant"];
-  const out = {} as Lifestyle;
-  for (const key of k) {
-    const v = poi[key];
-    if (v) {
-      out[key] = { stars: v.stars, label: v.label, count: v.count };
-    } else {
-      out[key] = { stars: 1, label: "andmed puuduvad", count: 0 };
-    }
+  const counts: LifestyleCounts = {};
+  for (const key of Object.keys(LIFESTYLE_LABELS) as LifestyleKey[]) {
+    counts[key] = poi?.[key]?.count ?? 0;
   }
-  return out;
+  return scoreLifestyle(counts);
 }
 
 const MISSING_LABEL = "Andmed puuduvad";

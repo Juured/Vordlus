@@ -73,20 +73,13 @@ export function decodeShareUrl(b64: string): string[] {
 
 // Default scores — used while data is loading
 import { computeScores } from "./scores";
+import { EMPTY_LIFESTYLE } from "./lifestyle";
 
 export function defaultScores(): PropertyScores {
   return computeScores({
     c: null,
     e: null,
-    lifestyle: {
-      park: { stars: 0, label: "—", count: 0 },
-      school: { stars: 0, label: "—", count: 0 },
-      gym: { stars: 0, label: "—", count: 0 },
-      transit: { stars: 0, label: "—", count: 0 },
-      shop: { stars: 0, label: "—", count: 0 },
-      cafe: { stars: 0, label: "—", count: 0 },
-      restaurant: { stars: 0, label: "—", count: 0 },
-    },
+    lifestyle: EMPTY_LIFESTYLE,
     marketMedian: null,
   });
 }

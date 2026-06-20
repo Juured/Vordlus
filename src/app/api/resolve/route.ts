@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBuilding, getCadastre, searchAddresses, type AksAddress, type CadastreRecord, type EhrBuilding } from "@/lib/estdata";
 import { parseUserInput } from "@/lib/parseInput";
-import { lifestyleFromPOI, scoreLifestyle, type Lifestyle } from "@/lib/lifestyle";
+import { EMPTY_LIFESTYLE, lifestyleFromPOI, scoreLifestyle, type Lifestyle } from "@/lib/lifestyle";
 
 export type Resolved = {
   input: { raw: string; kind: string };
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     picked: null,
     cadastre: null,
     ehr: null,
-    lifestyle: scoreLifestyle(null, null),
+    lifestyle: EMPTY_LIFESTYLE,
     errors,
   };
 
@@ -151,13 +151,13 @@ export async function POST(req: NextRequest) {
 
     if (out.picked == null && addr) out.picked = addr;
 
-    // Lifestyle: real POI data if we have a WGS84 point; deterministic otherwise.
+    // Lifestyle: real POI data if we have a WGS84 point; otherwise explicit missing.
     const wgs = wgs84FromCad(out.cadastre);
     if (wgs) {
       const poi = await fetchPOI(wgs[1], wgs[0]);
-      out.lifestyle = poi ?? scoreLifestyle(out.cadastre, out.ehr);
+      out.lifestyle = poi ?? EMPTY_LIFESTYLE;
     } else {
-      out.lifestyle = scoreLifestyle(out.cadastre, out.ehr);
+      out.lifestyle = EMPTY_LIFESTYLE;
     }
   } catch (e) {
     errors.push(`Üldine: ${(e as Error).message}`);

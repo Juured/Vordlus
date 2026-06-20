@@ -13,6 +13,7 @@ import {
   type CompareColumn,
 } from "@/lib/compareStore";
 import { computeScores } from "@/lib/scores";
+import { EMPTY_LIFESTYLE } from "@/lib/lifestyle";
 
 const MAX_SLOTS = 5;
 
@@ -23,16 +24,6 @@ type ResolveResponse = {
   ehr: { ehr_code: string; esmaneKasutus: string | null; energy: { energiaKlass: string | null }[] } | null;
   lifestyle?: { park: { stars: number; label: string; count: number }; school: { stars: number; label: string; count: number }; gym: { stars: number; label: string; count: number }; transit: { stars: number; label: string; count: number }; shop: { stars: number; label: string; count: number }; cafe: { stars: number; label: string; count: number }; restaurant: { stars: number; label: string; count: number } };
   errors: string[];
-};
-
-const EMPTY_LIFESTYLE = {
-  park: { stars: 0, label: "—", count: 0 },
-  school: { stars: 0, label: "—", count: 0 },
-  gym: { stars: 0, label: "—", count: 0 },
-  transit: { stars: 0, label: "—", count: 0 },
-  shop: { stars: 0, label: "—", count: 0 },
-  cafe: { stars: 0, label: "—", count: 0 },
-  restaurant: { stars: 0, label: "—", count: 0 },
 };
 
 export default function Home() {

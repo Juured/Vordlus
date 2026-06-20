@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { CompareColumn } from "@/lib/compareStore";
 import { makeId, saveCompare } from "@/lib/compareStore";
 import { parseUserInput } from "@/lib/parseInput";
-import { scoreLifestyle } from "@/lib/lifestyle";
+import { EMPTY_LIFESTYLE } from "@/lib/lifestyle";
 
 type Props = {
   index: number;
