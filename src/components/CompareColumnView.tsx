@@ -315,7 +315,11 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
       <div className="border-t border-rule">
         <table className="w-full text-[11.5px]">
           <tbody>
-            <Row label="Ehitise liik" value={e?.nimetus ?? "—"} />
+           <Row
+  label="Ehitise liik"
+  value={e?.nimetus ?? "—"}
+  info="Ehitise kasutusotstarve või tüüp EHR andmete järgi."
+/>
             <Row label="Esmakasutus" value={fmtYear(e?.esmaneKasutus)} />
             <Row label="Energiamärgis" value={<EnergyPill k={e?.energy[0]?.energiaKlass ?? null} />} />
             <Row
