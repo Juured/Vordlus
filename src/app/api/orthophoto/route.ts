@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   u.searchParams.set("layers", "EESTIFOTO");
   u.searchParams.set("styles", "");
   u.searchParams.set("bbox", `${minLon},${minLat},${maxLon},${maxLat}`);
-  u.searchParams.set("srs", "EPSG:4326");
+  u.searchParams.set("crs", "EPSG:4326");
   u.searchParams.set("width", "600");
   u.searchParams.set("height", "450");
   u.searchParams.set("format", "image/jpeg");
