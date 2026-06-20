@@ -372,8 +372,13 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-                <ComparisonTable columns={filteredWithScores} />
-              </>
+               <ComparisonTable columns={filteredWithScores} />
+
+<div className="mt-8">
+  <PropertyMap />
+</div>
+
+</>
             )}
           </div>
         </div>
