@@ -93,6 +93,7 @@ export default function Home() {
             rooms: col.input.manualRooms ?? undefined,
             listingPhoto: col.input.manualListingPhoto ?? undefined,
             listingUrl: col.input.manualListingUrl ?? undefined,
+            ehrEnergyClass: col.input.manualListingUrl ? null : null,
           });
         }
         return;
@@ -181,6 +182,11 @@ export default function Home() {
       price?: number | null; area?: number | null; rooms?: number | null;
       listingPhoto?: string | null; listingUrl?: string | null;
       prePopulatedEnrichment?: CompareColumn["enrichment"];
+      // Demo-specific: override energy class on the EHR. Useful when the
+      // real EHR has no energy certificate (older buildings) but we
+      // know it from the listing. Without this, TCO and Rohelaen scores
+      // would show "andmed puuduvad".
+      ehrEnergyClass?: string | null;
     },
   ): Promise<{ ok: boolean; error?: string }> {
     if (!raw.trim()) return { ok: false, error: "Sisesta aadress või ID" };
@@ -193,7 +199,24 @@ export default function Home() {
       if (!r.ok) return { ok: false, error: `Server viga: ${r.status}` };
       const j: ResolveResponse = await r.json();
       const cad = (j.cadastre as CompareColumn["cadastre"]) ?? null;
-      const e = (j.ehr as CompareColumn["ehr"]) ?? null;
+      let e = (j.ehr as CompareColumn["ehr"]) ?? null;
+      // Demo override: patch the energy class if the EHR has none but
+      // the caller (demo button) supplied one from the listing.
+      if (manual?.ehrEnergyClass && (!e?.energy?.[0]?.energiaKlass)) {
+        const patchedEnergy = {
+          energiaKlass: manual.ehrEnergyClass,
+          energiaValjastKp: null,
+          energiaKehtibKuniKp: null,
+          energiaKaalKasutus: null,
+          tarnEn: null,
+          tarnEnKK: null,
+          // kytteTyypTxt is needed for green mortgage scoring. Default to
+          // "Kaugküte" (district heating) — Estonia's most common heating
+          // type for 1950s–1990s korterelamu.
+          kytteTyypTxt: e?.energy?.[0]?.kytteTyypTxt ?? "Kaugküte",
+        };
+        e = e ? { ...e, energy: [patchedEnergy, ...(e.energy?.slice(1) ?? [])] } : null;
+      }
       const lifestyle = (j.lifestyle as CompareColumn["lifestyle"]) ?? EMPTY_LIFESTYLE;
       const newCol: CompareColumn = {
         id: makeId(),
@@ -526,6 +549,7 @@ export default function Home() {
                     listingPhoto: ex.photos[0] ?? null,
                     listingUrl: ex.listingUrl,
                     prePopulatedEnrichment: buildDemoEnrichment(ex),
+                    ehrEnergyClass: ex.energyClass ?? null,
                   });
                 }
               }} />
