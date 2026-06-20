@@ -13,11 +13,24 @@ const MULTI = ["korterelamu", "korter"];
 
 function deriveGlyph(address: string): string {
   if (!address.trim()) return "—";
-  const firstChunk = address.split(",")[0]?.trim() ?? "";
-  const tokens = firstChunk.split(/\s+/);
+  // The full address format is "county, city, district, street+number".
+  // The street+number chunk is the one containing a digit. Use that.
+  const chunks = address.split(",").map((s) => s.trim()).filter(Boolean);
+  // Find the chunk with a building number
+  const withNumber = chunks.find((c) => /\d/.test(c));
+  const target = withNumber ?? chunks[0] ?? "";
+  const tokens = target.split(/\s+/);
+  const streetTok = tokens[0] ?? "";
   const numTok = tokens.find((t) => /^\d+[a-z]?$/i.test(t));
-  const streetTok = tokens.find((t) => /^[A-Za-zÜÖÄÕüöäõ]/.test(t)) ?? "";
-  return streetTok.charAt(0).toUpperCase() + (numTok ?? "");
+  // If the first token starts with a digit, scan for a letter-starting token
+  let letter = "";
+  if (/^\d/.test(streetTok)) {
+    const letterTok = tokens.find((t) => /^[a-zA-ZÜÖÄÕüöäõ]/.test(t));
+    letter = letterTok ? letterTok.charAt(0).toUpperCase() : "";
+  } else {
+    letter = streetTok.charAt(0).toUpperCase();
+  }
+  return letter + (numTok ?? "");
 }
 
 export function Monogram({ address, buildingType, index, overallScore, overallLabel, onClose }: Props) {

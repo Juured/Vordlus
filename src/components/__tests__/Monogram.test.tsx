@@ -26,6 +26,11 @@ describe("Monogram", () => {
     expect(container.firstChild).toHaveClass("photo-cool");
   });
 
+  it("derives glyph from the street+number chunk when address is county-prefixed", () => {
+    render(<Monogram address="Harju maakond, Tallinn, Nõmme linnaosa, Viljandi mnt 47" index={0} overallScore={3.5} overallLabel="hea" />);
+    expect(screen.getByText("V47")).toBeInTheDocument();
+  });
+
   it("renders the index, overall pill, and close button", () => {
     render(<Monogram address="Viljandi mnt 47" index={4} overallScore={3.8} overallLabel="hea" onClose={() => {}} />);
     expect(screen.getByText("#05")).toBeInTheDocument();
