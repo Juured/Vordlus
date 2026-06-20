@@ -450,9 +450,10 @@ function EmptyState({ onTryExample }: { onTryExample: () => void }) {
         Sisesta esimene aadress või klõpsa näidet.
       </h3>
       <p className="mt-3 text-muted max-w-prose mx-auto text-[14.5px]">
-        Iga objekt saab neli skoori: <strong>Fair Value</strong> (hind vs turu mediaan),
-        <strong> TCO</strong> (igakuised kulud küte + elekter), <strong>Appreciation</strong> (tuleviku väärtus) ja
-        <strong> Elustiil</strong> (park, kool, transport 1 km raadiuses).
+        Iga objekt saab viis skoori: <strong>Fair Value</strong> (hind vs turu mediaan),
+        <strong> Elamiskulud</strong> (igakuised kulud küte + elekter), <strong>Väärtuse kasv</strong> (tuleviku väärtus),
+        <strong> Elustiil</strong> (park, kool, transport 1 km raadiuses) ja
+        <strong> Rohelaen</strong> (rohelaenu sobivus 4+).
       </p>
       <button
         onClick={onTryExample}
