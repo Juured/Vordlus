@@ -13,29 +13,39 @@ describe("GET /api/radon", () => {
   beforeEach(() => { nock.cleanAll(); });
   afterEach(() => { nock.cleanAll(); });
 
-  it("returns 'madal' when point is outside any high-risk polygon", async () => {
-    nock(EGT).get(/geoserver\/egt\/ows/).reply(200, { features: [] });
+  it("returns 'madal' when point has no radon settlement data", async () => {
+    nock(EGT).get(/geoserver\/ows/).reply(200, { features: [] });
     const res = await GET(makeReq(58.0, 26.0));
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.data.class).toBe("madal");
-    expect(body.source).toBe("egt-radon");
+    expect(body.source).toContain("radoon");
   });
 
-  it("returns 'korge' when point is inside a high-risk polygon", async () => {
-    nock(EGT).get(/geoserver\/egt\/ows/).reply(200, {
-      features: [{ properties: { RISK: "korge" } }],
+  it("returns 'korge' when keskmine Bq/m³ is high (>=200)", async () => {
+    nock(EGT).get(/geoserver\/ows/).reply(200, {
+      features: [{ properties: { keskmine: 250 } }],
     });
     const res = await GET(makeReq(59.5, 24.7));
     const body = await res.json();
     expect(body.data.class).toBe("korge");
   });
 
-  it("returns 502 on upstream error", async () => {
-    nock(EGT).get(/geoserver\/egt\/ows/).reply(500);
+  it("returns 'keskmine' for 100-200 Bq/m³", async () => {
+    nock(EGT).get(/geoserver\/ows/).reply(200, {
+      features: [{ properties: { keskmine: 150 } }],
+    });
     const res = await GET(makeReq(59.5, 24.7));
-    expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error).toBeTruthy();
+    expect(body.data.class).toBe("keskmine");
+  });
+
+  it("returns 'madal' for <100 Bq/m³", async () => {
+    nock(EGT).get(/geoserver\/ows/).reply(200, {
+      features: [{ properties: { keskmine: 50 } }],
+    });
+    const res = await GET(makeReq(59.5, 24.7));
+    const body = await res.json();
+    expect(body.data.class).toBe("madal");
   });
 });

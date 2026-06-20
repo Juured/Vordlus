@@ -7,6 +7,8 @@ type Props = {
   overallScore: number;
   overallLabel: string;
   onClose?: () => void;
+  lat?: number | null;
+  lon?: number | null;
 };
 
 const MULTI = ["korterelamu", "korter"];
@@ -16,13 +18,11 @@ function deriveGlyph(address: string): string {
   // The full address format is "county, city, district, street+number".
   // The street+number chunk is the one containing a digit. Use that.
   const chunks = address.split(",").map((s) => s.trim()).filter(Boolean);
-  // Find the chunk with a building number
   const withNumber = chunks.find((c) => /\d/.test(c));
   const target = withNumber ?? chunks[0] ?? "";
   const tokens = target.split(/\s+/);
   const streetTok = tokens[0] ?? "";
   const numTok = tokens.find((t) => /^\d+[a-z]?$/i.test(t));
-  // If the first token starts with a digit, scan for a letter-starting token
   let letter = "";
   if (/^\d/.test(streetTok)) {
     const letterTok = tokens.find((t) => /^[a-zA-ZÜÖÄÕüöäõ]/.test(t));
@@ -33,19 +33,33 @@ function deriveGlyph(address: string): string {
   return letter + (numTok ?? "");
 }
 
-export function Monogram({ address, buildingType, index, overallScore, overallLabel, onClose }: Props) {
-  const glyph = deriveGlyph(address);
+export function Monogram({ address, buildingType, index, overallScore, overallLabel, onClose, lat, lon }: Props) {
   const isMulti = !!buildingType && MULTI.some((m) => buildingType.toLowerCase().includes(m));
-  const bgClass = isMulti ? "photo-cool" : "photo-warm";
+  const hasPhoto = typeof lat === "number" && typeof lon === "number";
+  const photoSrc = hasPhoto ? `/api/orthophoto?lat=${lat}&lon=${lon}` : null;
   return (
-    <div className={`relative w-full aspect-[4/3] ${bgClass}`}>
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 grid place-items-center"
-        style={{ fontFamily: '"Fraunces", ui-serif, Georgia, serif', fontWeight: 300, fontSize: 96, lineHeight: 1, color: "#1A1A1A", opacity: 0.92, letterSpacing: "-0.04em" }}
-      >
-        {glyph}
-      </div>
+    <div className={`relative w-full aspect-[4/3] ${isMulti ? "photo-cool" : "photo-warm"} overflow-hidden`}>
+      {photoSrc && (
+        // Orthophoto from Maa-amet (server-side WMS render via /api/orthophoto).
+        // If the fetch fails, the underlying gradient stays visible.
+        <img
+          src={photoSrc}
+          alt={address}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => { (e.currentTarget.style.display = "none"); }}
+        />
+      )}
+      {!photoSrc && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 grid place-items-center"
+          style={{ fontFamily: '"Fraunces", ui-serif, Georgia, serif', fontWeight: 300, fontSize: 96, lineHeight: 1, color: "#1A1A1A", opacity: 0.92, letterSpacing: "-0.04em" }}
+        >
+          {deriveGlyph(address)}
+        </div>
+      )}
       <span className="absolute top-2 left-2 text-[10px] font-semibold tracking-wider uppercase bg-white/90 backdrop-blur px-2 py-0.5 text-ink">
         #{String(index + 1).padStart(2, "0")}
       </span>
