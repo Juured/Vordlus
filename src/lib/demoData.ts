@@ -93,7 +93,7 @@ export const DEMO_LISTINGS: DemoListing[] = [
   {
     label: "G29",
     address: "Gonsiori tn 29, Kesklinn, Tallinn",
-    raw: "Gonsiori 29, Tallinn",
+    raw: "Gonsiori tn 29, Tallinn",
     price: 465000,
     area: 89.8,
     rooms: 3,
