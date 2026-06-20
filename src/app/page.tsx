@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import FilterSidebar, { type Filters } from "@/components/FilterSidebar";
 import CompareSlot from "@/components/CompareSlot";
 import CompareColumnView from "@/components/CompareColumnView";
-import { ComparisonTable } from "@/components/ComparisonTable";
 import {
   decodeShareUrl,
   encodeShareUrl,
@@ -164,7 +163,7 @@ export default function Home() {
       if (filters.minOverall && col.scores.overall > 0) {
         if (col.scores.overall < filters.minOverall) return false;
       }
-      if (filters.greenMortgageOnly && col.scores.greenMortgage.score < 4) return false;
+      if (filters.greenMortgageOnly && (col.scores.greenMortgage?.score ?? 0) < 4) return false; // deprecated
       if (filters.minParkStars != null && filters.minParkStars > 0 && col.lifestyle.park.stars < filters.minParkStars) return false;
       if (filters.minSchoolStars != null && filters.minSchoolStars > 0 && col.lifestyle.school.stars < filters.minSchoolStars) return false;
       if (filters.minTransitStars != null && filters.minTransitStars > 0 && col.lifestyle.transit.stars < filters.minTransitStars) return false;
@@ -553,9 +552,9 @@ export default function Home() {
           </h1>
           <p className="mt-4 text-muted max-w-prose text-[15px]">
             Sisesta kuni viis aadressi, kv.ee linki või katastri numbrit. Meie koostame
-            kinnistu, ehitise ja energiamärgise andmed kõrvuti ning anname viis skoori:
+            kinnistu, ehitise ja energiamärgise andmed kõrvuti ning anname neli skoori:
             Fair Value (hind vs turu mediaan), TCO (elamiskulud), Appreciation
-            (tuleviku väärtus), Elustiil (naabruskond) ja Rohelaen (rohelaenu sobivus).
+            (tuleviku väärtus) ja Elustiil (naabruskond).
           </p>
         </div>
       </section>
@@ -612,8 +611,8 @@ export default function Home() {
                       />
                     ))}
                   </div>
-                </div>
-                <ComparisonTable columns={filteredWithScores} />
+                 </div>
+
                 <div className="mt-8">
                   <PropertyMap columns={filteredWithScores} />
                 </div>
@@ -645,10 +644,9 @@ function EmptyState({ onTryExample }: { onTryExample: () => void }) {
         Sisesta esimene aadress või klõpsa näidet.
       </h3>
       <p className="mt-3 text-muted max-w-prose mx-auto text-[14.5px]">
-        Iga objekt saab viis skoori: <strong>Fair Value</strong> (hind vs turu mediaan),
-        <strong> Elamiskulud</strong> (igakuised kulud küte + elekter), <strong>Väärtuse kasv</strong> (tuleviku väärtus),
-        <strong> Elustiil</strong> (park, kool, transport 1 km raadiuses) ja
-        <strong> Rohelaen</strong> (rohelaenu sobivus 4+).
+        Iga objekt saab neli skoori: <strong>Fair Value</strong> (hind vs turu mediaan),
+        <strong> Elamiskulud</strong> (igakuised kulud küte + elekter), <strong>Väärtuse kasv</strong> (tuleviku väärtus) ja
+        <strong> Elustiil</strong> (park, kool, transport 1 km raadiuses).
       </p>
       <button
         onClick={onTryExample}
