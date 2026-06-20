@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
   u.searchParams.set("height", "450");
   u.searchParams.set("format", "image/jpeg");
   u.searchParams.set("transparent", "false");
-  u.searchParams.set("EXCEPTIONS", "application/vnd.ogc.se_xml");
+  // No EXCEPTIONS override — the default XML error format is widely
+  // accepted and avoids the WMS rejecting an unknown MIME.
 
   try {
     const r = await fetch(u.toString(), {
@@ -47,8 +48,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `WMS ${r.status}` }, { status: 502 });
     }
     const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.length < 200) {
-      return NextResponse.json({ error: "empty image" }, { status: 502 });
+    // WMS error responses are XML, not images — detect and forward as JSON.
+    if (buf.length < 200 || buf[0] === 0x3c /* '<' */) {
+      const txt = buf.toString("utf8", 0, Math.min(buf.length, 500));
+      return NextResponse.json({ error: "WMS error", detail: txt }, { status: 502 });
     }
     return new NextResponse(buf, {
       status: 200,
