@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   u.searchParams.set("service", "WMS");
   u.searchParams.set("version", "1.3.0");
   u.searchParams.set("request", "GetMap");
-  u.searchParams.set("layers", "of10000");
+  u.searchParams.set("layers", "EESTIFOTO");
   u.searchParams.set("styles", "");
   u.searchParams.set("bbox", `${minLon},${minLat},${maxLon},${maxLat}`);
   u.searchParams.set("srs", "EPSG:4326");
