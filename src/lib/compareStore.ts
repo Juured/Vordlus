@@ -18,6 +18,10 @@ export type CompareColumn = {
   cadastre: CadastreRecord | null;
   ehr: EhrBuilding | null;
   lifestyle: Lifestyle;
+  transit: { stopCount: number; frequency: number } | null;
+  radon: { class: "madal" | "keskmine" | "korge" } | null;
+  flood: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
+  planeeringud: { name: string; maxFloors: number }[] | null;
   scores: PropertyScores; // 4-score evaluation
   fetchedAt: number;
   errors: string[];

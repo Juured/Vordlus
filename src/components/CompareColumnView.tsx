@@ -6,6 +6,7 @@ import { ageOf, fmtM2, fmtMoney, fmtYear } from "@/lib/estdata";
 import { LifestyleMatrix } from "@/components/LifestyleMatrix";
 import { AvmBar } from "@/components/AvmBar";
 import { Monogram } from "@/components/Monogram";
+import { RiskBadges } from "@/components/RiskBadges";
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -319,6 +320,8 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
           </tbody>
         </table>
       </div>
+
+      <RiskBadges radon={column.radon} flood={column.flood} />
     </div>
   );
 }

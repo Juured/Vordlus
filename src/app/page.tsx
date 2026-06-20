@@ -23,6 +23,9 @@ type ResolveResponse = {
   cadastre: { pindala: number; tunnus: string } | null;
   ehr: { ehr_code: string; esmaneKasutus: string | null; energy: { energiaKlass: string | null }[] } | null;
   lifestyle?: { park: { stars: number; label: string; count: number }; school: { stars: number; label: string; count: number }; gym: { stars: number; label: string; count: number }; transit: { stars: number; label: string; count: number }; shop: { stars: number; label: string; count: number }; cafe: { stars: number; label: string; count: number }; restaurant: { stars: number; label: string; count: number } };
+  transit?: { stopCount: number; frequency: number } | null;
+  radon?: { class: "madal" | "keskmine" | "korge" } | null;
+  flood?: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
   errors: string[];
 };
 
@@ -45,6 +48,10 @@ export default function Home() {
           cadastre: null,
           ehr: null,
           lifestyle: EMPTY_LIFESTYLE,
+          transit: null,
+          radon: null,
+          flood: null,
+          planeeringud: null,
           scores: defaultScores(),
           fetchedAt: 0,
           errors: [],
@@ -154,6 +161,10 @@ export default function Home() {
         cadastre: cad,
         ehr: e,
         lifestyle,
+        transit: j.transit ?? null,
+        radon: j.radon ?? null,
+        flood: j.flood ?? null,
+        planeeringud: null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
           c: cad,
