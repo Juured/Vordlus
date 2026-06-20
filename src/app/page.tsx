@@ -261,8 +261,45 @@ export default function Home() {
       });
       if (!r.ok) return;
       const j = await r.json();
+      // Merge: keep any pre-populated demo fields, only fill in nulls
+      // with whatever the live API returns. The Coolify scrape service
+      // may be down, in which case j.data has nulls for priceHistory,
+      // daysOnMarket, etc. — but the demo pre-populated values for
+      // pricePerM2, districtBenchmark, renovation must survive.
       setColumns((prev) =>
-        prev.map((c) => (c.id === col.id ? { ...c, enrichment: j.data ?? null } : c)),
+        prev.map((c) => {
+          if (c.id !== col.id) return c;
+          const live = j.data ?? {};
+          const base: CompareColumn["enrichment"] = c.enrichment ?? {
+            pricePerM2: null,
+            deviationFromComparables: null,
+            priceHistory: null,
+            daysOnMarket: null,
+            duplicates: null,
+            completeness: null,
+            districtBenchmark: null,
+            energyComparison: null,
+            renovation: null,
+            rentYield: null,
+            liquidity: null,
+          };
+          return {
+            ...c,
+            enrichment: {
+              pricePerM2: base.pricePerM2 ?? live.pricePerM2 ?? null,
+              deviationFromComparables: base.deviationFromComparables ?? live.deviationFromComparables ?? null,
+              priceHistory: base.priceHistory ?? live.priceHistory ?? null,
+              daysOnMarket: base.daysOnMarket ?? live.daysOnMarket ?? null,
+              duplicates: base.duplicates ?? live.duplicates ?? null,
+              completeness: base.completeness ?? live.completeness ?? null,
+              districtBenchmark: base.districtBenchmark ?? live.districtBenchmark ?? null,
+              energyComparison: base.energyComparison ?? live.energyComparison ?? null,
+              renovation: base.renovation ?? live.renovation ?? null,
+              rentYield: base.rentYield ?? live.rentYield ?? null,
+              liquidity: base.liquidity ?? live.liquidity ?? null,
+            },
+          };
+        }),
       );
     } catch {
       /* swallow — enrichment is best-effort */
