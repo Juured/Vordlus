@@ -4,6 +4,7 @@
 import type { CadastreRecord, EhrBuilding } from "./estdata";
 import type { Lifestyle } from "./lifestyle";
 import type { PropertyScores } from "./scores";
+import type { EnrichmentData } from "@/app/api/enrich/route";
 
 export type CompareInput = {
   raw: string;
@@ -23,6 +24,7 @@ export type CompareColumn = {
   flood: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
   planeeringud: { name: string; maxFloors: number }[] | null;
   listingPhoto?: string | null;
+  enrichment: EnrichmentData | null;
   scores: PropertyScores; // 4-score evaluation
   fetchedAt: number;
   errors: string[];

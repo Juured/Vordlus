@@ -22,6 +22,8 @@ const baseCol: CompareColumn = {
   radon: null,
   flood: null,
   planeeringud: null,
+  listingPhoto: null,
+  enrichment: null,
   scores: {
     fairValue: { score: 4, ratio: 0.8, baseline: 2500, baselineSource: "Maa-amet 2022", reason: "alla mediaani" },
     tco: { score: 3, kWh: 150, reason: "150 kWh/m²/a" },

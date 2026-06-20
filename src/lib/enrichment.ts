@@ -77,21 +77,28 @@ export function computeYield(opts: {
   return { yieldPct: Math.round(yieldPct * 10) / 10, tier, reason };
 }
 
-export type EnergyDistribution = Record<string, number> & { mode: string | null; total: number };
+export type EnergyDistribution = {
+  A: number; B: number; C: number; D: number; E: number; F: number; G: number; H: number;
+  mode: string | null;
+  total: number;
+};
 
 export function energyDistributionFromListings(
   listings: { energy_class: string | null }[],
 ): EnergyDistribution {
-  const dist: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0 };
+  const dist: EnergyDistribution = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, mode: null, total: listings.length };
   for (const l of listings) {
-    if (l.energy_class && l.energy_class in dist) dist[l.energy_class]++;
+    if (l.energy_class && l.energy_class in dist) {
+      dist[l.energy_class as "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H"]++;
+    }
   }
   let mode: string | null = null;
   let max = 0;
-  for (const [k, v] of Object.entries(dist)) {
-    if (v > max) { max = v; mode = k; }
+  for (const k of ["A", "B", "C", "D", "E", "F", "G", "H"] as const) {
+    if (dist[k] > max) { max = dist[k]; mode = k; }
   }
-  return { ...dist, mode, total: listings.length };
+  dist.mode = mode;
+  return dist;
 }
 
 export function percentileOf(value: number, sortedAsc: number[]): number {

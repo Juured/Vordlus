@@ -57,6 +57,7 @@ export default function Home() {
           flood: null,
           planeeringud: null,
           listingPhoto: null,
+          enrichment: null,
           scores: defaultScores(),
           fetchedAt: 0,
           errors: [],
@@ -175,6 +176,7 @@ export default function Home() {
         flood: j.flood ?? null,
         planeeringud: j.planeeringud ?? null,
         listingPhoto: j.listingPhoto ?? null,
+        enrichment: null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
           c: cad,
@@ -196,6 +198,8 @@ export default function Home() {
         }
         return [...prev, newCol].slice(0, MAX_SLOTS);
       });
+      // Fire-and-forget enrichment fetch
+      void fetchEnrichmentFor(newCol);
       return { ok: true };
     } catch (e) {
       return { ok: false, error: (e as Error).message };
@@ -209,6 +213,41 @@ export default function Home() {
       else next.splice(index, 1);
       return next;
     });
+  }
+
+  async function fetchEnrichmentFor(col: CompareColumn) {
+    const addressDisplay = col.cadastre?.tais_aadress || col.ehr?.taisaadress || col.input.raw;
+    const addressNorm = addressDisplay
+      .toLowerCase()
+      .replace(/[^a-z0-9õöäü]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const buildYear = col.ehr?.esmaneKasutus ? parseInt(col.ehr.esmaneKasutus, 10) : null;
+    const energyClass = col.ehr?.energy?.[0]?.energiaKlass ?? null;
+    try {
+      const r = await fetch("/api/enrich", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          raw: col.input.raw,
+          addressDisplay,
+          addressNorm,
+          wgs84: null,
+          manualPrice: col.input.manualPrice,
+          manualArea: col.input.manualArea,
+          manualRooms: col.input.manualRooms,
+          energyClass,
+          buildYear,
+          estpropMedian: col.cadastre?.estprop_median_eur_m2 ?? null,
+        }),
+      });
+      if (!r.ok) return;
+      const j = await r.json();
+      setColumns((prev) =>
+        prev.map((c) => (c.id === col.id ? { ...c, enrichment: j.data ?? null } : c)),
+      );
+    } catch {
+      /* swallow — enrichment is best-effort */
+    }
   }
 
   function removeColumn(id: string) {

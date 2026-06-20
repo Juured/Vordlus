@@ -32,7 +32,7 @@ export type EnrichmentData = {
   pricePerM2: number | null;
   deviationFromComparables: { pct: number; median: number; n: number } | null;
   priceHistory: { date: number; price: number }[] | null;
-  daysOnMarket: { days: number; tone: "roheline" | "kollane" | "punane" | "puudub" } | null;
+  daysOnMarket: { days: number | null; tone: "roheline" | "kollane" | "punane" | "puudub" } | null;
   duplicates: { portal: string; url: string; price: number }[] | null;
   completeness: { score: number; missing: string[] } | null;
   districtBenchmark: { districtMedian: number | null; districtName: string | null; nationalPercentile: number | null } | null;
@@ -204,7 +204,9 @@ export async function POST(req: NextRequest) {
       }
 
       const thisEnergy = body.energyClass ?? listing?.current.energy_class ?? null;
-      const districtDist = energyDistributionFromListings(saleSearch.listings);
+      const districtDist = energyDistributionFromListings(
+        saleSearch.listings.map((l) => ({ energy_class: l.energy_class ?? null })),
+      );
       const nationalMode = Object.entries(NATIONAL_ENERGY_DISTRIBUTION).sort((a, b) => b[1] - a[1])[0][0];
       out.energyComparison = {
         thisClass: thisEnergy,

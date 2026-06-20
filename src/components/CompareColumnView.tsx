@@ -8,6 +8,7 @@ import { AvmBar } from "@/components/AvmBar";
 import { Monogram } from "@/components/Monogram";
 import { RiskBadges } from "@/components/RiskBadges";
 import { PlaneeringuRadar } from "@/components/PlaneeringuRadar";
+import { EnrichmentPanel } from "@/components/EnrichmentPanel";
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -329,6 +330,7 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
       </div>
 
       <RiskBadges radon={column.radon} flood={column.flood} />
+      <EnrichmentPanel data={column.enrichment} />
     </div>
   );
 }

@@ -6,7 +6,10 @@ const SCRAPE = "http://localhost:3000";
 // Mock NextRequest/Response minimally
 vi.mock("next/server", () => ({
   NextRequest: class {
-    constructor(input, init) {
+    url: string;
+    method: string;
+    _body: unknown;
+    constructor(input: string | { url: string }, init?: { method?: string; body?: unknown }) {
       this.url = typeof input === "string" ? input : input.url;
       this.method = (init && init.method) || "POST";
       this._body = (init && init.body) || null;
@@ -19,7 +22,7 @@ vi.mock("next/server", () => ({
     }
   },
   NextResponse: {
-    json: (data, init) => ({
+    json: (data: unknown, init?: { status?: number; headers?: Record<string, string> }) => ({
       _data: data,
       status: (init && init.status) || 200,
       headers: new Map(Object.entries((init && init.headers) || {})),
