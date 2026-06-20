@@ -20,7 +20,7 @@
 | **In-AKS** | `https://aks.geoportaal.ee/inaks/inaadress/gazetteer` | Address → ADS_OID + WGS84 |
 | **Cadastre X-Road** | `https://cadastrepublic.kataster.ee/api/xroad/valid/{tunnus}` | Parcel area, tax value, land use, ownership |
 | **EHR (Ehitisregister)** | `https://livekluster.ehr.ee/api/building/v2/buildingData?ehr_code={code}` | Build year, energy class, kasutusluba, floor count, heating |
-| **kv.ee** | scraped via the `scrape/` service in Coolify (VPS IP bypasses Cloudflare better than Vercel edge) | We extract the address from the URL slug for In-AKS; we also pull the first listing photo via the scrape service |
+| **kv.ee / city24.ee / kinnisvara24.ee** | scraped via the `scrape/` Python service in Coolify (Crawl4AI, VPS IP bypasses Cloudflare better than Vercel edge) | We extract the address from the URL slug for In-AKS; we also pull the first listing photo via the scrape service |
 
 The comparison fetches data **per address**: In-AKS → building → kadastritunnus → cadastre. Same chain as juured.com.
 
@@ -58,11 +58,13 @@ src/
     lifestyle.ts            # 1–5 star scoring (deterministic stub; replace with POI-based)
   types/
     proj4.d.ts              # ambient type for proj4
-scrape/                     # separate Node.js + Playwright service (deploys to Coolify)
-  server.js                 # POST /scrape, GET /health
-  extract.js                # first-photo HTML extraction
-  cache.js                  # in-memory LRU
-  Dockerfile                # mcr.microsoft.com/playwright base
+scrape/                     # separate Python + Crawl4AI service (deploys to Coolify)
+  server.py                 # FastAPI: POST /scrape, GET /health, GET /sources
+  adapters/                 # registry of source adapters (kv.ee, city24.ee, kinnisvara24.ee)
+  schema.py                 # NormalizedListing Pydantic model
+  cache.py                  # in-memory LRU with TTL
+  Dockerfile                # python:3.12-slim + Chromium
+  requirements.txt          # crawl4ai, fastapi, uvicorn, pydantic
   README.md                 # scrape service docs
 Dockerfile                  # Next.js standalone build (vordlus)
 .dockerignore
@@ -136,7 +138,14 @@ Set these on the **vordlus** service (the Next.js one):
 | `NEXT_PUBLIC_BASE_PATH` | `/vordlus` | Only if you keep the default basePath. Empty string for root-mount. |
 | `NEXT_TELEMETRY_DISABLED` | `1` | Optional. Quiets Next.js analytics. |
 
-The `vordlus-scrape` service needs no env vars — defaults are fine.
+The `vordlus-scrape` service needs:
+
+| Var | Value | Notes |
+|---|---|---|
+| `OPENAI_API_KEY` | `sk-...` | **Required** for actual LLM extraction. Without it `/scrape` returns 503. `/health` and `/sources` still work. |
+| `LLM_PROVIDER` | `openai` | Optional. `openai` (default) or `anthropic`. |
+| `LLM_MODEL` | `gpt-4o-mini` | Optional. Override the model. |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` | Optional. Used if `OPENAI_API_KEY` is not set and `LLM_PROVIDER=anthropic`. |
 
 ### What this gets you
 
@@ -159,30 +168,41 @@ The `vordlus-scrape` service needs no env vars — defaults are fine.
 ```bash
 # 1. Scrape service health
 curl -fsS https://scrape.example.com/health
-# → {"ok":true,"cacheSize":0,"browserReady":true}
+# → {"ok":true,"cacheSize":0,"llmReady":true,"version":"0.2.0"}
 
-# 2. Scrape a known listing (returns photoUrl or blocked:true)
+# 2. List known sources
+curl -fsS https://scrape.example.com/sources
+# → ["kv.ee","city24.ee","kinnisvara24.ee"]
+
+# 3. Scrape a known listing (returns a NormalizedListing)
 curl -fsS -X POST https://scrape.example.com/scrape \
   -H 'content-type: application/json' \
-  -d '{"url":"https://www.kv.ee/3995056"}'
+  -d '{"url":"https://www.kv.ee/3995056","source":"kv.ee"}'
 
-# 3. vordlus proxy (forwards to scrape service)
+# 4. vordlus proxy (forwards to scrape service, returns the legacy shape)
 curl -fsS 'https://vordlus.example.com/api/listing-photo?url=https://www.kv.ee/3995056'
-# → {"photoUrl":"https://...","title":"...","blocked":false}
+# → {"photoUrl":"https://...","title":"...","address":"...","blocked":false}
 ```
 
 ### Why a separate scrape service?
 
 Vercel serverless functions are short-lived and run from edge IPs that
-Cloudflare heavily flags. A long-running headless Chromium on a VPS IP
-gets past the challenge page reliably. The trade-off is one more
-container in Coolify; the upside is listing photos actually load.
+Cloudflare heavily flags. A long-running Python + Crawl4AI process on
+a VPS IP gets past the challenge page reliably. The trade-off is one
+more container in Coolify; the upside is listing photos actually load
+*and* the data extraction is LLM-driven (so it survives DOM changes
+better than CSS selectors).
 
 ### Local dev with the scrape service
 
 ```bash
 # Terminal 1: scrape service
-cd scrape && npm install && npx playwright install chromium && node server.js
+cd scrape
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m playwright install chromium
+export OPENAI_API_KEY=sk-...
+python -m uvicorn server:app --host 0.0.0.0 --port 3000
 
 # Terminal 2: vordlus (point at local scrape)
 cd /root/projects/vordlus
@@ -190,8 +210,8 @@ SCRAPE_SERVICE_URL=http://localhost:3000 npm run dev
 ```
 
 > Note: from a residential IP, Cloudflare may still challenge kv.ee
-> even via Playwright. That's expected — the production setup runs
-> from the VPS IP for exactly this reason.
+> even via Crawl4AI. That's expected — the production setup runs from
+> the VPS IP for exactly this reason.
 
 ## License
 
