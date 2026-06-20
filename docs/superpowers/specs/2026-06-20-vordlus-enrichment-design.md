@@ -36,7 +36,7 @@ User decisions (this round):
 
 ## Goal
 
-Add a 12-block enrichment layer that augments every `CompareColumn` with kv.ee/city24.ee-derived intelligence. Visible in a collapsible `<EnrichmentPanel>` at the bottom of each column. Explain each metric in Estonian via tooltips so the user understands what they're looking at. Make sure data flows from scrape service → Next.js API → client without any silent failures.
+Add an 11-block enrichment layer that augments every `CompareColumn` with kv.ee/city24.ee-derived intelligence. Visible in a collapsible `<EnrichmentPanel>` at the bottom of each column. Explain each metric in Estonian via tooltips so the user understands what they're looking at. Make sure data flows from scrape service → Next.js API → client without any silent failures.
 
 ## Non-goals
 
@@ -216,33 +216,35 @@ Pipeline:
 
 ### Section 4: Enrichment algorithms (server-side, in `/api/enrich`)
 
-The enrich route orchestrates everything and returns a single `EnrichmentData` object per column.
+The enrich route orchestrates everything and returns a single `EnrichmentData` object per column. Sections 4.1–4.11 below map 1:1 to the 11 user-requested features in the same order.
 
-**4.1 price per m² (enriched)**
-- `price_per_m2 = manualPrice / manualArea` (same as v2)
-- **deviation_from_comparables**: from `/scrape/search` stats — `deviation_pct = (this - median) / median × 100`
-  - tooltip: "Hinna erinevus sarnaste piirkonna kuulutuste mediaanist. Üle +10% → omanik ootab turust kõrgemat hinda."
-- **district_benchmark**: from v2's `estprop_median_eur_m2`
-  - This property's district percentile vs national distribution (new): `pctile = 1 - (rank(this_price_per_m2, all_estprop_medians) / N)`
-  - tooltip: "Sinu kinnisvara positsioon Eesti omavalitsuste mediaanide edetabelis. 75% = sinu linnaosa on Eesti 75. protsentiilis (kõrgem pool)."
+**4.1 price per m²**
+- `price_per_m2 = manualPrice / manualArea` (same computation as v2)
+- Surface as the primary number in the enrichment panel, color-coded against the v2 AVM bar
+- tooltip: "Hind jagatud pindalaga. Võrdle sama linnaosa varasemate tehingutega — see on kõige täpsem võrreldav suurus."
 
-**4.2 price-change history**
+**4.2 deviation from comparable listings**
+- From `/scrape/search` stats — `deviation_pct = (this_price_per_m2 - median_comparables_price_per_m2) / median_comparables_price_per_m2 × 100`
+- Color: roheline if `< -5%`, kollane `±5%`, punane if `> +5%`
+- tooltip: "Hinna erinevus sarnaste piirkonna kuulutuste mediaanist. Üle +10% → omanik ootab turust kõrgemat hinda."
+
+**4.3 price-change history**
 - Source: SQLite `price_history`
 - Compute: `% change from first_seen`, `count of price drops`, `last_change_days_ago`
 - Render: sparkline (8 SVG points) + list of changes
 - tooltip: "Kuulutuse hinnamuutused alates esmakordsest fikseerimisest. Sagedased langused → omanik on paindlik, võib pakkuda alla."
 
-**4.3 days on market**
+**4.4 days on market**
 - Source: `now - first_seen_at` from SQLite
 - Bins: roheline <30, kollane 30-90, punane >90
 - tooltip: "Mitu päeva on see kuulutus portaalis olnud. Alla 7 = kiirustage, üle 90 = omanik on tõenäoliselt valmis läbirääkimisteks."
 
-**4.4 duplicate listing detection**
+**4.5 duplicate listing detection**
 - From `/scrape/search`: group by `(address_norm, rooms, area±5%)`
 - If `count > 1`: flag as duplicate, list duplicates with portal + price
 - tooltip: "Sama korter võib olla üleval mitmes portaalis. Odavaim on tavaliselt tõde. Kui hinnad erinevad, küsitle müüjat."
 
-**4.5 listing completeness score**
+**4.6 listing completeness score**
 - Weighted field presence (no scraping, computed from `/scrape/listing` response):
   - `photos ≥ 5` → 25
   - `description_len ≥ 500` → 20
@@ -255,20 +257,21 @@ The enrich route orchestrates everything and returns a single `EnrichmentData` o
 - Output: 0-100 + array of missing fields
 - tooltip: "Mitu võtmevälja on kuulutuses täidetud. Rohkem välju = usaldusväärsem, sageli parem hind."
 
-**4.6 location/district benchmark (deepened)**
-- `estprop_median_eur_m2` for the district
-- National distribution: pre-computed constant `NATIONAL_DISTRIBUTION: number[]` (all ~80 omavalitsus medians sorted)
-- This property's percentile within national distribution
-- Render: "75. protsentiil · parem kui 75% Eesti omavalitsustest"
+**4.7 location/district benchmark (deepened on top of v2's estprop_median_eur_m2)**
+- v2 already exposes `estprop_median_eur_m2` per omavalitsus. We extend it with:
+  - `NATIONAL_DISTRIBUTION: number[]` — constant, all ~80 omavalitsus medians from the v2 table, sorted ascending. Lives in `src/lib/enrichment.ts`.
+  - This property's percentile: `pctile = (rank(this_price_per_m2, NATIONAL_DISTRIBUTION) / N) * 100`
+  - Render: "Tallinn: 2540 €/m² · 75. protsentiil Eestis"
+- tooltip: "Sinu kinnisvara positsioon Eesti omavalitsuste mediaanide edetabelis. 75% = sinu linnaosa on Eesti 75. protsentiilis (kõrgem pool)."
 
-**4.7 energy class comparison**
+**4.8 energy class comparison**
 - This property: from EHR `energy[0].energiaKlass`
 - District average: from `/scrape/search` → aggregate energy_class across listings in same `address_norm` cluster
-- National average: hardcoded constant `NATIONAL_ENERGY_DISTRIBUTION: Record<string, number>` (from Maa-amet building registry 2024, ~30% B, 30% C, 20% D, 10% E, 10% F-H)
+- National average: hardcoded constant `NATIONAL_ENERGY_DISTRIBUTION: Record<string, number>` (from Maa-amet building registry 2024, ~30% B, 30% C, 20% D, 10% E, 10% F-H). Lives in `src/lib/enrichment.ts`.
 - Render: "B · linnaosa keskmine: C · Eesti keskmine: D"
 - tooltip: "Energiamärgise võrdlus. A-C on rohelaenuks sobiv, D on tingimuslik, E-H on kõrge energiakuluga."
 
-**4.8 renovation/condition signals**
+**4.9 renovation/condition signals**
 - Rule-based inference from EHR:
   - `build_year < 1980 AND energy_class ∈ {A, B, C}` → "Renoveeritud (energia­märgis A-C, ehitatud enne 1980)"
   - `build_year < 1980 AND energy_class ∈ {D-H}` → "Algne, ei viita renoveerimisele"
@@ -279,7 +282,7 @@ The enrich route orchestrates everything and returns a single `EnrichmentData` o
 - Output: 1-line verdict + 0-3 bullet signals
 - tooltip: "Renoveerimis- ja seisukorra märgid EHR andmetest. Täpseks hinnanguks vaata üle ise või kutsu ekspert."
 
-**4.9 rent vs sale yield**
+**4.10 rent vs sale yield**
 - From `/scrape/search?type=rent` (same address_norm cluster)
 - If `rent_listings.length >= 3`:
   - `median_rent_per_m2 = median(rent_listings.price_eur / rent_listings.area_m2)`
@@ -290,7 +293,7 @@ The enrich route orchestrates everything and returns a single `EnrichmentData` o
 - If `rent_listings.length < 3` → "Üüriandmed pole piisavad"
 - tooltip: "Aastane üüritulu jagatud müügihinnaga. 4-7% on Eestis tavaline. Üle 8% on hea, alla 4% on madal."
 
-**4.10 liquidity (similar supply nearby)**
+**4.11 liquidity (similar supply nearby)**
 - From `/scrape/search`: `totalCount` + `byPortal`
 - Bins: kõrge ≥30, keskmine 10-29, madal <10
 - tooltip: "Sarnaste kuulutuste arv samas piirkonnas. Kõrge likviidsus = lihtne müüa, kui vaja. Madal = nišš, ostjaid vähe."
