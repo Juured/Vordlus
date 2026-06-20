@@ -128,7 +128,7 @@ export const DEMO_LISTINGS: DemoListing[] = [
   {
     label: "V151",
     address: "Vabaduse pst 151b, Nõmme, Tallinn",
-    raw: "Vabaduse pst 151b, Tallinn",
+    raw: "Vabaduse pst 151, Tallinn",
     price: 399500,
     area: 126.4,
     rooms: 4,
