@@ -3,6 +3,7 @@
 import { type CompareColumn } from "@/lib/compareStore";
 import { SCORE_LABELS, type ScoreKey } from "@/lib/scores";
 import { ageOf, fmtM2, fmtMoney, fmtYear } from "@/lib/estdata";
+import { LifestyleMatrix } from "@/components/LifestyleMatrix";
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -279,6 +280,9 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
           })}
         </ul>
       </div>
+
+      {/* Lifestyle matrix — 7 categories */}
+      <LifestyleMatrix lifestyle={column.lifestyle} />
 
       {/* Data table — just the key facts */}
       <div className="border-t border-rule">
