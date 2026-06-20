@@ -4,8 +4,13 @@
 // vordlus itself runs on Vercel. Vercel edge IPs are heavily flagged by
 // Cloudflare, so we cannot fetch kv.ee listing photos from here — we get
 // the challenge page. Instead, we forward the request to a self-hosted
-// scrape service (see /scrape/) that runs on a VPS IP with a clean
-// reputation.
+// Python scrape service (see /scrape/, FastAPI + Crawl4AI) that runs on
+// a VPS IP with a clean reputation.
+//
+// This proxy is kept as a thin public-API wrapper so external consumers
+// (curl users, scripts, the README example) get a stable
+// `photoUrl`/`title`/`address` shape regardless of how the underlying
+// scrape service evolves.
 //
 // If `SCRAPE_SERVICE_URL` is not set, the proxy returns 200 with
 // `{ photoUrl: null, skipped: true }` so the rest of the page can render
@@ -23,6 +28,17 @@ export const runtime = "nodejs";
 
 const SCRAPE_TIMEOUT_MS = parseInt(process.env.SCRAPE_TIMEOUT_MS || "8000", 10);
 
+// Map a URL host to one of the scrape service's known sources. The
+// scrape service auto-detects, but passing it explicitly avoids a
+// roundtrip if the host ever disagrees with our parser.
+function sourceFor(host: string): string | null {
+  const h = host.toLowerCase();
+  if (h === "kv.ee" || h === "www.kv.ee") return "kv.ee";
+  if (h === "city24.ee" || h === "www.city24.ee") return "city24.ee";
+  if (h === "kinnisvara24.ee" || h === "www.kinnisvara24.ee") return "kinnisvara24.ee";
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url") || "";
   if (!url) {
@@ -38,14 +54,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid url" }, { status: 400 });
   }
   const host = parsed.hostname.toLowerCase();
-  const allowed =
-    host === "kv.ee" ||
-    host === "www.kv.ee" ||
-    host === "city24.ee" ||
-    host === "www.city24.ee" ||
-    host === "kinnisvara24.ee" ||
-    host === "www.kinnisvara24.ee";
-  if (!allowed) {
+  const source = sourceFor(host);
+  if (!source) {
     return NextResponse.json({ error: "unsupported host", host }, { status: 400 });
   }
 
@@ -64,7 +74,7 @@ export async function GET(req: NextRequest) {
     const upstream = await fetch(`${base.replace(/\/$/, "")}/scrape`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ url: parsed.toString() }),
+      body: JSON.stringify({ url: parsed.toString(), source }),
       signal: ac.signal,
       // No Next.js caching here — the upstream service has its own LRU.
       cache: "no-store",
@@ -77,11 +87,24 @@ export async function GET(req: NextRequest) {
       );
     }
     const data = await upstream.json();
+    // Translate the new { listing, blocked } shape into the legacy
+    // { photoUrl, title, address } shape that downstream callers (and
+    // the public API documented in README.md) expect.
+    const listing = data.listing ?? null;
+    const photoUrl =
+      Array.isArray(listing?.photos) && listing.photos.length > 0
+        ? listing.photos[0]
+        : null;
     return NextResponse.json(
       {
-        photoUrl: data.photoUrl ?? null,
-        title: data.title ?? null,
-        address: data.address ?? null,
+        photoUrl,
+        title: listing?.title ?? null,
+        address: listing?.address ?? null,
+        source: listing?.source ?? source,
+        sourceId: listing?.source_id ?? null,
+        price: listing?.price ?? null,
+        areaM2: listing?.area_m2 ?? null,
+        rooms: listing?.rooms ?? null,
         blocked: !!data.blocked,
         cached: !!data.cached,
       },

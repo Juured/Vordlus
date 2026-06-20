@@ -3,6 +3,8 @@ import { getBuilding, getCadastre, searchAddresses, estpropMedianFor, type AksAd
 import { parseUserInput } from "@/lib/parseInput";
 import { EMPTY_LIFESTYLE, lifestyleFromPOI, scoreLifestyle, type Lifestyle } from "@/lib/lifestyle";
 
+const SCRAPE_TIMEOUT_MS = parseInt(process.env.SCRAPE_TIMEOUT_MS || "8000", 10);
+
 export type Resolved = {
   input: { raw: string; kind: string };
   picked: AksAddress | null;
@@ -87,19 +89,36 @@ function wgs84FromCad(c: CadastreRecord | null): [number, number] | null {
   return [lng, lat];
 }
 
-// Best-effort fetch of a listing photo for kv.ee / city24.ee / kinnisvara24.ee
-// URLs. We forward to /api/listing-photo (which itself talks to the
-// self-hosted scrape service in Coolify). Failures are swallowed: the
-// comparison card simply falls back to the typographic monogram.
-async function fetchListingPhoto(req: NextRequest, listingUrl: string): Promise<string | null> {
+// Best-effort fetch of the first listing photo for a kv.ee / city24.ee /
+// kinnisvara24.ee URL. We POST directly to the self-hosted Python scrape
+// service (Crawl4AI) in Coolify. Failures are swallowed: the comparison
+// card simply falls back to the typographic monogram.
+//
+// The scrape service returns either:
+//   { listing: { photos: ["https://..."] , ... }, blocked: false, ... }
+//   { listing: null, blocked: true, ... }            (Cloudflare)
+//   { listing: null, error: "...", ... }            (503 / 502 / 504)
+async function fetchListingPhoto(url: string, source: string): Promise<string | null> {
+  const base = process.env.SCRAPE_SERVICE_URL;
+  if (!base) return null;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), SCRAPE_TIMEOUT_MS);
   try {
-    const u = absoluteUrl(req, `/api/listing-photo?url=${encodeURIComponent(listingUrl)}`);
-    const r = await fetch(u.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
+    const r = await fetch(`${base.replace(/\/$/, "")}/scrape`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url, source }),
+      signal: ac.signal,
+      cache: "no-store",
+    });
+    clearTimeout(timer);
     if (!r.ok) return null;
     const j = await r.json();
-    if (j.skipped || j.blocked) return null;
-    return typeof j.photoUrl === "string" && j.photoUrl ? j.photoUrl : null;
+    if (j.blocked) return null;
+    const first = j.listing?.photos?.[0];
+    return typeof first === "string" && first ? first : null;
   } catch {
+    clearTimeout(timer);
     return null;
   }
 }
@@ -253,7 +272,7 @@ export async function POST(req: NextRequest) {
   // listing photo via the self-hosted scrape service. Best-effort: if it
   // fails, the card still renders (just with the typographic monogram).
   if (parsed.kind === "kv-url") {
-    out.listingPhoto = await fetchListingPhoto(req, parsed.raw);
+    out.listingPhoto = await fetchListingPhoto(parsed.raw, parsed.portal);
   }
 
   return NextResponse.json(out, {
