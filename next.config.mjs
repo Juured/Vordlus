@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
   images: { remotePatterns: [{ protocol: "https", hostname: "**" }] },
   // When set, all asset URLs (CSS, JS) get prefixed with this path.
   // Used so the site also works behind /vordlus/* path-based access.
