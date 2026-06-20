@@ -103,6 +103,10 @@ export default function Home() {
       if (filters.minOverall && col.scores.overall > 0) {
         if (col.scores.overall < filters.minOverall) return false;
       }
+      if (filters.greenMortgageOnly && col.scores.greenMortgage.score < 4) return false;
+      if (filters.minParkStars != null && filters.minParkStars > 0 && col.lifestyle.park.stars < filters.minParkStars) return false;
+      if (filters.minSchoolStars != null && filters.minSchoolStars > 0 && col.lifestyle.school.stars < filters.minSchoolStars) return false;
+      if (filters.minTransitStars != null && filters.minTransitStars > 0 && col.lifestyle.transit.stars < filters.minTransitStars) return false;
       return true;
     });
   }, [columns, filters]);

@@ -8,8 +8,12 @@ export type Filters = {
   areaMin?: number;
   areaMax?: number;
   roomsMin?: number;
-  energy?: string[]; // ["A","B",...]
-  minOverall?: number; // minimum overall score (1-5)
+  energy?: string[];
+  minOverall?: number;
+  greenMortgageOnly?: boolean;
+  minParkStars?: number;
+  minSchoolStars?: number;
+  minTransitStars?: number;
 };
 
 type Props = {
@@ -84,7 +88,11 @@ export default function FilterSidebar({ filters, onChange, matchCount, totalCoun
     (filters.areaMin != null) || (filters.areaMax != null) ||
     (filters.roomsMin != null) ||
     (filters.energy?.length ?? 0) > 0 ||
-    (filters.minOverall != null && filters.minOverall > 0);
+    (filters.minOverall != null && filters.minOverall > 0) ||
+    filters.greenMortgageOnly === true ||
+    (filters.minParkStars != null && filters.minParkStars > 0) ||
+    (filters.minSchoolStars != null && filters.minSchoolStars > 0) ||
+    (filters.minTransitStars != null && filters.minTransitStars > 0);
 
   return (
     <aside className="w-full lg:w-72 shrink-0">
@@ -195,6 +203,51 @@ export default function FilterSidebar({ filters, onChange, matchCount, totalCoun
                 })}
               </div>
               <p className="mt-1.5 text-[10.5px] text-faint">Filtreeri 4 skoori keskmise järgi</p>
+            </div>
+
+            {/* Green mortgage only */}
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">Rohelaen</p>
+              <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.greenMortgageOnly ?? false}
+                  onChange={(e) => update({ greenMortgageOnly: e.target.checked })}
+                  className="accent-ink"
+                />
+                <span className="text-ink">Ainult rohelaenu sobilikud (4+)</span>
+              </label>
+            </div>
+
+            {/* Lifestyle minimums */}
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">Elustiil · alampiir</p>
+              <div className="space-y-1.5">
+                {([
+                  { key: "minParkStars" as const, label: "Park" },
+                  { key: "minSchoolStars" as const, label: "Kool" },
+                  { key: "minTransitStars" as const, label: "Ühistransport" },
+                ]).map((row) => (
+                  <div key={row.key} className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] text-ink">{row.label}</span>
+                    <div className="flex gap-0.5">
+                      {[0, 1, 2, 3, 4, 5].map((n) => {
+                        const active = (filters[row.key] ?? 0) === n;
+                        return (
+                          <button
+                            key={n}
+                            onClick={() => update({ [row.key]: n === 0 ? undefined : n } as Partial<Filters>)}
+                            className={`w-5 h-5 text-[10px] font-semibold border ${active ? "bg-ink text-paper border-ink" : "bg-white text-muted border-rule hover:border-ink"}`}
+                            aria-label={`${row.label} ${n}+`}
+                          >
+                            {n === 0 ? "—" : n}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
