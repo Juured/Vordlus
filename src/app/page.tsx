@@ -7,6 +7,7 @@ import CompareColumnView from "@/components/CompareColumnView";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import {
   decodeShareUrl,
+  encodeShareUrl,
   defaultScores,
   loadCompare,
   makeId,
@@ -394,13 +395,8 @@ export default function Home() {
   }
 
   async function shareUrl() {
-    const inputs = columns.map((c) => c.input.raw);
-    if (inputs.length === 0) return;
-    const b64 = (() => {
-      const json = JSON.stringify(inputs);
-      if (typeof btoa === "function") return btoa(unescape(encodeURIComponent(json)));
-      return Buffer.from(json, "utf-8").toString("base64");
-    })();
+    const b64 = encodeShareUrl(columns);
+    if (!b64) return;
     const url = new URL(window.location.href);
     url.searchParams.set("c", b64);
     await navigator.clipboard.writeText(url.toString());
