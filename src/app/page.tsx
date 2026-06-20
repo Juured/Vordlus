@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import FilterSidebar, { type Filters } from "@/components/FilterSidebar";
 import CompareSlot from "@/components/CompareSlot";
 import CompareColumnView from "@/components/CompareColumnView";
+import { ComparisonTable } from "@/components/ComparisonTable";
 import {
   decodeShareUrl,
   defaultScores,
@@ -365,6 +366,7 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
+                <ComparisonTable columns={filteredWithScores} />
               </>
             )}
           </div>
