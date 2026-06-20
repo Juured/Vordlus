@@ -15,10 +15,15 @@ export type Resolved = {
   errors: string[];
 };
 
-async function fetchJson<T>(path: string): Promise<T | null> {
+// Build an absolute URL from the request's origin so internal fetches
+// hit the actual deployment (not the placeholder "http://x").
+function absoluteUrl(req: NextRequest, path: string): URL {
+  return new URL(path, req.nextUrl.origin);
+}
+
+async function fetchJson<T>(req: NextRequest, path: string): Promise<T | null> {
   try {
-    const u = new URL(path, "http://x");
-    const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+    const r = await fetch(absoluteUrl(req, path).toString(), { headers: { Accept: "application/json" } });
     if (!r.ok) return null;
     const j = await r.json();
     return (j?.data ?? null) as T | null;
@@ -28,10 +33,10 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 }
 
 // Fetch lifestyle POI data for a given WGS84 coord (graceful on failure)
-async function fetchPOI(lat: number, lon: number): Promise<Lifestyle | null> {
+async function fetchPOI(req: NextRequest, lat: number, lon: number): Promise<Lifestyle | null> {
   // Primary: OSM Overpass via the existing proxy.
   try {
-    const u = new URL("/api/poi", "http://x");
+    const u = absoluteUrl(req, "/api/poi");
     u.searchParams.set("lat", String(lat));
     u.searchParams.set("lon", String(lon));
     u.searchParams.set("radius", "1000");
@@ -47,7 +52,7 @@ async function fetchPOI(lat: number, lon: number): Promise<Lifestyle | null> {
 
   // Secondary: Maa-amet huvipunktid WFS.
   try {
-    const u = new URL("/api/huvipunktid", "http://x");
+    const u = absoluteUrl(req, "/api/huvipunktid");
     u.searchParams.set("lat", String(lat));
     u.searchParams.set("lon", String(lon));
     u.searchParams.set("radius", "1000");
@@ -201,10 +206,10 @@ export async function POST(req: NextRequest) {
     const wgs = wgs84FromCad(out.cadastre);
     if (wgs) {
       const [poi, transit, radon, flood] = await Promise.all([
-        fetchPOI(wgs[1], wgs[0]),
-        fetchJson<{ stopCount: number; frequency: number }>(`/api/transit?lat=${wgs[1]}&lon=${wgs[0]}&radius=1000`),
-        fetchJson<{ class: string }>(`/api/radon?lat=${wgs[1]}&lon=${wgs[0]}`),
-        fetchJson<{ zone: string }>(`/api/flood?lat=${wgs[1]}&lon=${wgs[0]}`),
+        fetchPOI(req, wgs[1], wgs[0]),
+        fetchJson<{ stopCount: number; frequency: number }>(req, `/api/transit?lat=${wgs[1]}&lon=${wgs[0]}&radius=1000`),
+        fetchJson<{ class: string }>(req, `/api/radon?lat=${wgs[1]}&lon=${wgs[0]}`),
+        fetchJson<{ zone: string }>(req, `/api/flood?lat=${wgs[1]}&lon=${wgs[0]}`),
       ]);
       out.lifestyle = poi ?? EMPTY_LIFESTYLE;
       out.transit = transit;
