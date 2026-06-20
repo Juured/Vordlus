@@ -14,18 +14,39 @@ export type Resolved = {
 
 // Fetch lifestyle POI data for a given WGS84 coord (graceful on failure)
 async function fetchPOI(lat: number, lon: number): Promise<Lifestyle | null> {
+  // Primary: OSM Overpass via the existing proxy.
   try {
     const u = new URL("/api/poi", "http://x");
     u.searchParams.set("lat", String(lat));
     u.searchParams.set("lon", String(lon));
     u.searchParams.set("radius", "1000");
-    const r = await fetch(u.toString(), {
-      headers: { Accept: "application/json" },
-    });
+    const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.pois) {
+        const total = (Object.values(j.pois) as { count: number }[]).reduce((a, p) => a + (p.count ?? 0), 0);
+        if (total > 0) return lifestyleFromPOI(j.pois);
+      }
+    }
+  } catch { /* fall through */ }
+
+  // Secondary: Maa-amet huvipunktid WFS.
+  try {
+    const u = new URL("/api/huvipunktid", "http://x");
+    u.searchParams.set("lat", String(lat));
+    u.searchParams.set("lon", String(lon));
+    u.searchParams.set("radius", "1000");
+    const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
     if (!r.ok) return null;
     const j = await r.json();
-    if (!j.pois) return null;
-    return lifestyleFromPOI(j.pois);
+    if (!j.data) return null;
+    const total = (Object.values(j.data) as number[]).reduce((a, n) => a + n, 0);
+    if (total === 0) return null;
+    const pois: Record<string, { count: number; stars: number; label: string }> = {};
+    for (const [k, count] of Object.entries(j.data)) {
+      pois[k] = { count: count as number, stars: 0, label: "" };
+    }
+    return lifestyleFromPOI(pois);
   } catch {
     return null;
   }
