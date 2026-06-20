@@ -364,10 +364,21 @@ function Row({
 }) {
   return (
     <tr className="border-b border-rule last:border-b-0">
-      <td className="px-4 py-2.5 text-muted align-top whitespace-nowrap">
-        {label}
-        {hint && <p className="text-[9.5px] text-faint mt-0.5">{hint}</p>}
-      </td>
+     <td className="px-4 py-2.5 text-muted align-top whitespace-nowrap">
+  <span className="inline-flex items-center gap-1">
+    {label}
+    {info && (
+      <span
+        title={info}
+        aria-label={info}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white cursor-help"
+      >
+        ?
+      </span>
+    )}
+  </span>
+  {hint && <p className="text-[9.5px] text-faint mt-0.5">{hint}</p>}
+</td>
       <td className={`px-4 py-2.5 text-right text-ink align-top ${mono ? "font-mono text-[11px]" : ""}`}>{value}</td>
     </tr>
   );
