@@ -7,6 +7,7 @@ import { LifestyleMatrix } from "@/components/LifestyleMatrix";
 import { AvmBar } from "@/components/AvmBar";
 import { Monogram } from "@/components/Monogram";
 import { RiskBadges } from "@/components/RiskBadges";
+import { PlaneeringuRadar } from "@/components/PlaneeringuRadar";
 
 const Icon = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg
@@ -203,6 +204,8 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
           </p>
         )}
       </div>
+
+      <PlaneeringuRadar plans={column.planeeringud} />
 
       {/* Key metrics */}
       <div className="px-4 pb-3 grid grid-cols-3 gap-2 text-[11px] text-muted">
