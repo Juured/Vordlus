@@ -45,6 +45,11 @@ EXTRACTION_PROMPT = (
     "  - description: short description (1-3 sentences) in the original language\n"
     "  - agent_name: listing agent / brokerage name if shown\n"
     "  - agent_phone: contact phone number if shown\n"
+    "  - energy_class: the energy class letter (A, B, C, D, E, F, G, or H) "
+    "from the energy performance certificate. If not shown, omit.\n"
+    "  - build_year: the year the building was originally constructed (integer, e.g. 1972). "
+    "If not shown, omit.\n"
+    "  - has_floor_plan: true if there's a floor plan image or PDF link on the page, false otherwise.\n"
     "If a field is not present, omit it (or set to null). "
     "Do not invent values."
 )
