@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBuilding, getCadastre, searchAddresses, type AksAddress, type CadastreRecord, type EhrBuilding } from "@/lib/estdata";
+import { getBuilding, getCadastre, searchAddresses, estpropMedianFor, type AksAddress, type CadastreRecord, type EhrBuilding } from "@/lib/estdata";
 import { parseUserInput } from "@/lib/parseInput";
 import { EMPTY_LIFESTYLE, lifestyleFromPOI, scoreLifestyle, type Lifestyle } from "@/lib/lifestyle";
 
@@ -171,6 +171,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (out.picked == null && addr) out.picked = addr;
+
+    if (out.cadastre && out.cadastre.estprop_median_eur_m2 == null) {
+      const omv = out.cadastre.tais_aadress.split(",").map((s) => s.trim()).slice(-1)[0] ?? null;
+      out.cadastre.estprop_median_eur_m2 = estpropMedianFor(omv);
+    }
 
     // Lifestyle: real POI data if we have a WGS84 point; otherwise explicit missing.
     const wgs = wgs84FromCad(out.cadastre);

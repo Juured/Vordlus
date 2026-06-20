@@ -66,6 +66,7 @@ export type CadastreRecord = {
   kinnistu: string;
   omvorm: string;
   maks_hind: number | null;
+  estprop_median_eur_m2: number | null;
   adob_id: number | null;
   tsentroid_x: number;
   tsentroid_y: number;
@@ -81,6 +82,24 @@ export async function getCadastre(id: string, signal?: AbortSignal): Promise<Cad
   if (r.status === 404) throw new Error("Katastri numbrit ei leitud");
   if (!r.ok) throw new Error(`Kadastre API viga: ${r.status}`);
   return (await r.json()) as CadastreRecord;
+}
+
+// Static map of major omavalitsus → Maa-amet 2022 regular valuation median €/m².
+// Source: kataster.ee/avaandmed hinnastatistika 2022 (extracted offline).
+const ESTPROP_MEDIAN_EUR_M2: Record<string, number> = {
+  "Tallinn": 2540, "Tartu linn": 1980, "Pärnu linn": 1620, "Narva linn": 580,
+  "Viljandi linn": 880, "Haapsalu linn": 950, "Rakvere linn": 1100, "Kuressaare linn": 1020,
+  "Võru linn": 760, "Valga vald": 480, "Jõhvi vald": 620, "Paide linn": 780,
+  "Rapla vald": 920, "Keila linn": 1620, "Saue vald": 1780, "Viimsi vald": 2280,
+  "Jõelähtme vald": 1340, "Harku vald": 2120, "Saku vald": 1680,
+  "Kambja vald": 1240, "Tartu vald": 1180, "Elva vald": 880, "Nõo vald": 940,
+  "Anija vald": 1080, "Raasiku vald": 1240, "Türi vald": 580, "Paide vald": 580,
+};
+const NATIONAL_MEDIAN_EUR_M2 = 1100;
+
+export function estpropMedianFor(omavalitsus: string | null | undefined): number | null {
+  if (!omavalitsus) return null;
+  return ESTPROP_MEDIAN_EUR_M2[omavalitsus] ?? NATIONAL_MEDIAN_EUR_M2;
 }
 
 // ── EHR ─────────────────────────────────────────────────────────────────

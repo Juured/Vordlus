@@ -42,47 +42,56 @@ export const SCORE_LABELS: Record<ScoreKey, { title: string; subtitle: string; o
 };
 
 // ===== 1. Fair Value =====
-// ratio = price / marketMedian. < 1 = below market, > 1 = above.
-// We also cross-check against the Maa-amet 2022 tax value as a sanity check.
+// ratio = price / baseline. < 1 = below market, > 1 = above.
+// Baseline preference: estprop_median_eur_m2 (Maa-amet 2022 per-omavalitsus) →
+// batch median (only meaningful with 3+ properties) → maks_hind / area (tax value).
 export function fairValueScore(
   pricePerM2: number | null,
-  marketMedian: number | null,
+  estpropMedian: number | null,
+  batchMedian: number | null,
   maksHind: number | null,
   area: number | null,
-): { score: number; ratio: number | null; maxDiff: number | null; reason: string } {
+): { score: number; ratio: number | null; baseline: number | null; baselineSource: string; reason: string } {
   if (pricePerM2 == null || pricePerM2 <= 0) {
-    return { score: 0, ratio: null, maxDiff: null, reason: "andmed puuduvad" };
+    return { score: 0, ratio: null, baseline: null, baselineSource: "none", reason: "andmed puuduvad" };
   }
-  // Reference: prefer market median; fall back to maks_hind
-  const ref = marketMedian ?? (maksHind != null && area ? maksHind / area : null);
-  if (ref == null || ref <= 0) {
-    return { score: 3, ratio: null, maxDiff: null, reason: "võrdlusandmed puuduvad" };
+  let baseline: number | null = null;
+  let baselineSource = "none";
+  if (estpropMedian != null && estpropMedian > 0) {
+    baseline = estpropMedian;
+    baselineSource = "Maa-amet 2022";
+  } else if (batchMedian != null && batchMedian > 0) {
+    baseline = batchMedian;
+    baselineSource = "võrdluse mediaan";
+  } else if (maksHind != null && area && area > 0) {
+    baseline = maksHind / area;
+    baselineSource = "maksustamisväärtus";
   }
-  const ratio = pricePerM2 / ref;
+  if (baseline == null) {
+    return { score: 3, ratio: null, baseline: null, baselineSource: "none", reason: "võrdlusandmed puuduvad" };
+  }
+  const ratio = pricePerM2 / baseline;
   let score: number;
   if (ratio <= 0.7) score = 5;
   else if (ratio <= 0.9) score = 4;
   else if (ratio <= 1.1) score = 3;
   else if (ratio <= 1.3) score = 2;
   else score = 1;
-  // Tighter verification: if batch median is wildly different from tax
-  // value, surface the larger delta.
-  const taxRatio = maksHind != null && area ? (pricePerM2 / (maksHind / area)) : null;
-  const maxDiff = taxRatio != null ? Math.max(Math.abs(ratio - 1), Math.abs(taxRatio - 1)) : Math.abs(ratio - 1);
   return {
     score,
     ratio,
-    maxDiff,
+    baseline,
+    baselineSource,
     reason:
       score === 5
-        ? "turu mediaanist oluliselt madalam"
+        ? `${baselineSource}st oluliselt madalam`
         : score === 4
-          ? "alla turu mediaani"
+          ? `alla ${baselineSource}i`
           : score === 3
-            ? "turu mediaani lähedal"
+            ? `${baselineSource}i lähedal`
             : score === 2
-              ? "üle turu mediaani"
-              : "turu mediaanist oluliselt kõrgem",
+              ? `üle ${baselineSource}i`
+              : `${baselineSource}st oluliselt kõrgem`,
   };
 }
 
@@ -251,7 +260,7 @@ export function computeScores(opts: {
   // TCO area: user's unit area, not the building's total
   const tcoArea = unitArea ?? null;
 
-  const fairValue = fairValueScore(pricePerM2, marketMedian, c?.maks_hind ?? null, tcoArea);
+  const fairValue = fairValueScore(pricePerM2, c?.estprop_median_eur_m2 ?? null, marketMedian, c?.maks_hind ?? null, tcoArea);
   const tco = tcoScore(energy?.energiaKlass ?? null, energy?.energiaKaalKasutus ? Number(energy.energiaKaalKasutus) : null, tcoArea);
   const appreciation = appreciationScore(buildYear, energy?.energiaKlass ?? null);
   const lifestyleS = lifestyleScore(lifestyle);
