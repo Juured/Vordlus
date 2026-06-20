@@ -220,10 +220,11 @@ export default function Home() {
         e = e ? { ...e, energy: [patchedEnergy, ...(e.energy?.slice(1) ?? [])] } : null;
       }
       const lifestyle = (j.lifestyle as CompareColumn["lifestyle"]) ?? EMPTY_LIFESTYLE;
+      // j.picked has WGS84 coords already; cad has L-EST97 that needs conversion
       const coord = cad
         ? estLambertToWgs84(cad.tsentroid_x, cad.tsentroid_y)
         : j.picked
-        ? estLambertToWgs84(j.picked.viitepunkt_l, j.picked.viitepunkt_b)
+        ? [j.picked.viitepunkt_l, j.picked.viitepunkt_b]
         : null;
       const newCol: CompareColumn = {
         id: makeId(),

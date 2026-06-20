@@ -24,6 +24,16 @@ const CATEGORY_COLOR: Record<PoiCategory, string> = {
   restaurant: "#c2410c",
 };
 
+const CATEGORY_LABEL: Record<PoiCategory, string> = {
+  park: "Park",
+  school: "Kool",
+  gym: "Jõusaal",
+  transit: "Transpordisõlm",
+  shop: "Pood",
+  cafe: "Kohvik",
+  restaurant: "Restoran",
+};
+
 export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
   const points = useMemo(
     () =>
@@ -73,14 +83,14 @@ export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
             const json = await res.json();
             const items = Array.isArray(json.items) ? json.items : [];
             return items
-              .filter((item: any) => item?.category === "cafe" || item?.category === "restaurant")
               .map((item: any) => ({
                 category: item.category as PoiCategory,
                 lat: Number(item.lat),
                 lon: Number(item.lon),
                 name: String(item.name ?? item.category ?? ""),
                 columnId: point.id,
-              }));
+              }))
+              .filter((item: PoiItem) => item.category && Number.isFinite(item.lat) && Number.isFinite(item.lon));
           }),
         );
         if (!canceled) {
@@ -169,7 +179,7 @@ export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
           fillOpacity: 0.9,
           weight: 1,
         }).addTo(map);
-        marker.bindTooltip(poi.name, { direction: "top", offset: [0, -8], permanent: false });
+        marker.bindTooltip(`${poi.name} (${poi.category})`, { direction: "top", offset: [0, -8], permanent: false });
         markersRef.current.push(marker);
       });
       map.fitBounds(bounds.pad(0.4), { maxZoom: 15, animate: false });
@@ -184,7 +194,11 @@ export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
           <p className="text-[14px] text-ink">Valitud asukohad ja naabruskonna kohvikud/restoranid</p>
         </div>
         <div className="text-right text-[12px] text-muted">
-          {loading ? "Laeb POI-d…" : error ? error : `${poiItems.length} kohvikut/restorani kaart`}
+          {loading
+            ? "Laeb POI-d…"
+            : error
+            ? error
+            : `${poiItems.length} POI-d kaart`}
         </div>
       </div>
       <div className="relative h-[520px]">
@@ -201,12 +215,12 @@ export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#111827]" />Aadress
           </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#be123c]" />Kohvik
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#c2410c]" />Restoran
-          </span>
+          {Object.entries(CATEGORY_COLOR).map(([category, color]) => (
+            <span key={category} className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+              {CATEGORY_LABEL[category as PoiCategory]}
+            </span>
+          ))}
           <span className="text-right text-[11px] text-muted">Pea meeles: OSM-i andmed võivad olla ebatäpsed.</span>
         </div>
       </div>
