@@ -371,7 +371,7 @@ function Row({
       <td className="px-4 py-2.5 text-muted align-top whitespace-nowrap">
         <span className="inline-flex items-center gap-1">
           {label}
-          {info && (
+          {true && (
             <span
               title={info}
               aria-label={info}
