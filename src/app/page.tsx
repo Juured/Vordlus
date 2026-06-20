@@ -49,7 +49,7 @@ export default function Home() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const shared = params.get("c");
-    if (shared) {
+      if (shared) {
       const inputs = decodeShareUrl(shared);
       if (inputs.length > 0) {
         const initial: CompareColumn[] = inputs.slice(0, MAX_SLOTS).map((s) => ({
@@ -61,6 +61,7 @@ export default function Home() {
             manualRooms: s.rooms ?? null,
             manualListingPhoto: s.listingPhoto ?? null,
             manualListingUrl: s.listingUrl ?? null,
+            manualEnergyClass: s.energyClass ?? null,
           },
           cadastre: null,
           ehr: null,
@@ -93,7 +94,7 @@ export default function Home() {
             rooms: col.input.manualRooms ?? undefined,
             listingPhoto: col.input.manualListingPhoto ?? undefined,
             listingUrl: col.input.manualListingUrl ?? undefined,
-            ehrEnergyClass: col.input.manualListingUrl ? null : null,
+            ehrEnergyClass: col.input.manualEnergyClass ?? undefined,
           });
         }
         return;

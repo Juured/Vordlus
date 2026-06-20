@@ -13,6 +13,7 @@ export type CompareInput = {
   manualRooms?: number | null;
   manualListingPhoto?: string | null; // for the hackathon demo only
   manualListingUrl?: string | null;   // for the hackathon demo only
+  manualEnergyClass?: string | null;  // for the hackathon demo only
 };
 
 export type CompareColumn = {
@@ -58,9 +59,9 @@ export function makeId(): string {
 }
 
 // URL share: encode each column's raw input + manual fields as base64-JSON.
-// ?c=<base64> in the URL → restored on load. We only carry the raw string
-// plus the manual fields (price/area/rooms/listingPhoto/listingUrl) so
-// that the demo's manual enhancements survive the share.
+// ?c=<base64> in the URL → restored on load. We carry the raw string plus
+// the manual fields so that the demo's manual enhancements (price, area,
+// rooms, photo, energy class) survive the share.
 export type ShareableColumn = {
   raw: string;
   price?: number | null;
@@ -68,6 +69,7 @@ export type ShareableColumn = {
   rooms?: number | null;
   listingPhoto?: string | null;
   listingUrl?: string | null;
+  energyClass?: string | null;
 };
 
 export function encodeShareUrl(cols: CompareColumn[]): string {
@@ -78,6 +80,11 @@ export function encodeShareUrl(cols: CompareColumn[]): string {
     rooms: c.input.manualRooms ?? null,
     listingPhoto: c.input.manualListingPhoto ?? null,
     listingUrl: c.input.manualListingUrl ?? null,
+    // Preserve the demo's energy class so the recipient's TCO and
+    // Rohelaen scores still compute. Strip the EHR override we applied
+    // in resolveSlot — only the *manual* class is what the user typed
+    // (or the demo button set), so that's what we share.
+    energyClass: c.ehr?.energy?.[0]?.energiaKlass ?? null,
   }));
   if (inputs.length === 0) return "";
   const json = JSON.stringify(inputs);
@@ -93,7 +100,6 @@ export function decodeShareUrl(b64: string): ShareableColumn[] {
         : Buffer.from(b64, "base64").toString("utf-8");
     const arr = JSON.parse(json);
     if (!Array.isArray(arr)) return [];
-    // Backward compat: if items are plain strings, treat as `{raw}`.
     return arr.map((x): ShareableColumn => {
       if (typeof x === "string") return { raw: x };
       if (x && typeof x === "object" && typeof x.raw === "string") {
@@ -104,6 +110,7 @@ export function decodeShareUrl(b64: string): ShareableColumn[] {
           rooms: typeof x.rooms === "number" ? x.rooms : null,
           listingPhoto: typeof x.listingPhoto === "string" ? x.listingPhoto : null,
           listingUrl: typeof x.listingUrl === "string" ? x.listingUrl : null,
+          energyClass: typeof x.energyClass === "string" ? x.energyClass : null,
         };
       }
       return { raw: "" };
