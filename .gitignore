@@ -6,3 +6,11 @@ out
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
