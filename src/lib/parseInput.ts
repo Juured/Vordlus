@@ -70,38 +70,80 @@ function fixName(token: string): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+// Noise words that frequently appear in kv.ee / kinnisvara24 slugs
+// but are NOT part of the actual address.
+const SLUG_NOISE = new Set([
+  "uus", "vana", "väike", "suur", // adjectives ("new", "old", "small", "big")
+  "ja", "voi", "ning",            // conjunctions ("and", "or")
+  "avalik", "era", "kinnisvara",  // sale types
+  "muuk", "üür", "rent",          // transaction types
+  "korter", "elamu", "maja", "eramaja", "ridaelamu", // building types
+  "müüa", "osta", "müük",
+]);
+
+// Street-name suffixes that distinguish real street tokens
+// from development-name noise like "hobemetsa".
+const STREET_SUFFIXES = new Set([
+  "mnt", "pst", "tee", "tn", "sk",
+  "maantee", "puiestee", "tänav", "sokk",
+]);
+
 function slugToAddress(slug: string): string {
   const parts = slug.toLowerCase().split("-").filter(Boolean);
   if (parts.length === 0) return "";
-  // Find the street number (e.g. "47", "47a", "51b")
-  const numberIdx = parts.findIndex((p) => /^\d+[a-z]?$/.test(p));
-  const numPos = numberIdx === -1 ? parts.length : numberIdx;
 
-  // Everything before the number = street name (with suffix kept lowercase)
-  const streetParts: string[] = [];
-  for (let i = 0; i < numPos; i++) {
-    const p = parts[i];
-    if (["mnt", "pst", "tee", "tn", "sk"].includes(p)) {
-      streetParts.push(p);
+  // Find the first number (the building number) — this is the address anchor.
+  const numberIdx = parts.findIndex((p) => /^\d+[a-z]?$/.test(p));
+  if (numberIdx === -1) {
+    const tok = parts.find((p) => !SLUG_NOISE.has(p));
+    if (!tok) return "";
+    return fixName(tok);
+  }
+
+  // Walk back from the number to find the street name.
+  // Rule: street = the token right before the number, PLUS any preceding
+  // "city + suffix" compound. Tokens that are pure noise OR a stand-alone
+  // development name (not a city, not a suffix) are dropped.
+  const before = parts.slice(0, numberIdx);
+  const cleaned = before.filter((p) => !SLUG_NOISE.has(p));
+  const streetWords: string[] = [];
+  if (cleaned.length >= 2) {
+    const [penultimate, last] = cleaned.slice(-2);
+    if (STREET_SUFFIXES.has(last) && (ESTONIAN_CITY_MAP[penultimate] || STREET_SUFFIXES.has(penultimate))) {
+      streetWords.push(fixName(penultimate), fixName(last));
     } else {
-      streetParts.push(fixName(p));
+      streetWords.push(fixName(last));
+    }
+  } else if (cleaned.length === 1) {
+    streetWords.push(fixName(cleaned[0]));
+  } else {
+    return parts[numberIdx];
+  }
+  streetWords.push(parts[numberIdx]);
+  const streetStr = streetWords.join(" ");
+
+  // City = a known Estonian city that appears AFTER the number
+  // (district may sit between the number and the city). If none,
+  // fall back to scanning the whole slug for a city token that
+  // wasn't already used in the street.
+  for (let i = numberIdx + 1; i < parts.length; i++) {
+    if (ESTONIAN_CITY_MAP[parts[i]]) {
+      return `${streetStr}, ${ESTONIAN_CITY_MAP[parts[i]]}`;
     }
   }
-  let streetStr = streetParts.join(" ");
-  if (numberIdx < parts.length) streetStr += " " + parts[numberIdx];
-
-  // Everything after = district + city. We only emit the city
-  // (In-AKS does not recognize the district as a query token in most cases).
-  // The last part of the slug is almost always the city.
-  let city: string | null = null;
-  if (parts.length > numPos) {
-    city = fixName(parts[parts.length - 1]);
+  for (const p of parts) {
+    if (ESTONIAN_CITY_MAP[p] && !cleaned.includes(p)) {
+      return `${streetStr}, ${ESTONIAN_CITY_MAP[p]}`;
+    }
   }
-  return city ? `${streetStr}, ${city}` : streetStr;
+  return streetStr;
 }
 
 const KV_BARE_RE = /^(?:https?:\/\/)?(?:www\.)?(?:kv|kinnisvara24)\.ee\/(?:[a-z]{2}\/)?(\d+)\/?$/i;
 const KV_SLUG_RE = /^(?:https?:\/\/)?(?:www\.)?(?:kv|kinnisvara24)\.ee\/(?:[a-z]{2}\/)?(\d+)-(.+?)\/?$/i;
+// New kv.ee layout: /kinnisvara/<category>/<slug>-o-<id>
+// e.g. ".../uusarendused/uus-hobemetsa-rehe-13-ja-rehe-poik-4-avalik-muuk-o-8089"
+const KV_CATEGORY_RE = /^(?:https?:\/\/)?(?:www\.)?kv\.ee\/kinnisvara\/[a-z0-9-]+\/(.+)-o-(\d+)\/?$/i;
 const CITY24_ET_RE = /^(?:https?:\/\/)?(?:www\.)?city24\.ee\/[a-z]{2}\/kinnisvara\/[a-z0-9-]+\/([a-z-]+)\/?(\d+)?\/?$/i;
 const CITY24_EN_RE = /^(?:https?:\/\/)?(?:www\.)?city24\.ee\/[a-z]{2}\/real-estate\/[a-z-]+-for-[a-z]+\/([a-z-]+)\/?(\d+)?\/?$/i;
 const TUNNUS_RE = /^\d{5}:\d{3}:\d{4}$/;
@@ -140,6 +182,19 @@ export function parseUserInput(raw: string): ParsedInput {
       portal: text.toLowerCase().includes("kinnisvara24") ? "kinnisvara24.ee" : "kv.ee",
       listingId: m[1],
       address: slugToAddress(m[2]),
+      raw: text,
+    };
+  }
+
+  // New kv.ee layout: /kinnisvara/<category>/<slug>-o-<id>
+  // e.g. ".../uusarendused/uus-hobemetsa-rehe-13-ja-rehe-poik-4-avalik-muuk-o-8089"
+  m = text.match(KV_CATEGORY_RE);
+  if (m) {
+    return {
+      kind: "kv-url",
+      portal: "kv.ee",
+      listingId: m[2],
+      address: slugToAddress(m[1]),
       raw: text,
     };
   }
