@@ -75,7 +75,7 @@ export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
             const params = new URLSearchParams({
               lat: String(point.lat),
               lon: String(point.lon),
-              radius: "1000",
+              radius: "500",
               detail: "1",
             });
             const res = await fetch(`/api/poi?${params.toString()}`);
@@ -161,14 +161,17 @@ export default function PropertyMap({ columns }: { columns: CompareColumn[] }) {
     if (points.length > 0) {
       const bounds = Leaflet.latLngBounds(points.map((p) => [p.lat, p.lon]));
       points.forEach((point) => {
-        const marker = Leaflet.circleMarker([point.lat, point.lon], {
-          radius: 8,
-          color: "#111827",
-          fillColor: "#ffffff",
-          fillOpacity: 1,
-          weight: 2,
+        const marker = Leaflet.marker([point.lat, point.lon], {
+          icon: Leaflet.icon({
+            iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+            shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41],
+          }),
         }).addTo(map);
-        marker.bindTooltip(point.label, { direction: "top", offset: [0, -10], permanent: false });
+        marker.bindTooltip(point.label, { direction: "top", offset: [0, 0], permanent: false });
         markersRef.current.push(marker);
       });
       poiItems.forEach((poi) => {
