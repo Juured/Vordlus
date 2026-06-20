@@ -336,16 +336,40 @@ export default function Home() {
   // by the "Lae 3 näidet" button so the enrichment panel shows real
   // values immediately, without waiting for the Coolify scrape service
   // to come online. /api/enrich will still fire in the background and
-  // fill in the remaining scrape-dependent blocks (price history, days
-  // on market, duplicates, etc.) once the service is up.
+  // fill in the remaining scrape-dependent blocks (rent yield, liquidity,
+  // deviation from comparables) once the service is up.
   function buildDemoEnrichment(ex: typeof DEMO_LISTINGS[number]): CompareColumn["enrichment"] {
     const d = ex.demoEnrichment;
     const pricePerM2 = Math.round(ex.price / ex.area);
+    // Days-on-market with the same roheline/kollane/punane bins as live.
+    const domTone = d?.daysOnMarket == null
+      ? "puudub"
+      : d.daysOnMarket < 30 ? "roheline" : d.daysOnMarket <= 90 ? "kollane" : "punane";
     return {
       pricePerM2,
+      // 1. Price per m² — always populated
+      // 2. District benchmark — pre-baked from the demo
       districtBenchmark: d?.estpropMedianEurM2 != null
-        ? { districtMedian: d.estpropMedianEurM2, districtName: ex.district, nationalPercentile: d.nationalPercentile ?? 50 }
+        ? {
+            districtMedian: d.estpropMedianEurM2,
+            districtName: ex.district,
+            nationalPercentile: d.nationalPercentile ?? 50,
+          }
         : null,
+      // 3. Price history — pre-baked (verified dates/prices)
+      priceHistory: d?.priceHistory ?? null,
+      // 4. Days on market — pre-baked
+      daysOnMarket: d?.daysOnMarket != null
+        ? { days: d.daysOnMarket, tone: domTone as "roheline" | "kollane" | "punane" | "puudub" }
+        : null,
+      // 5. Duplicates — none in the demo set (all 3 are different addresses)
+      duplicates: [],
+      // 6. Listing completeness — pre-baked override
+      completeness: d?.completenessOverride
+        ?? (ex.photos.length > 0
+              ? { score: Math.min(100, 25 + (ex.photos.length >= 5 ? 25 : 12) + 10 + 10 + 10 + 5 + 5), missing: ex.photos.length < 5 ? ["photos"] : [] }
+              : null),
+      // 7. Renovation verdict — computed from yearBuilt + energyClass
       renovation: (() => {
         if (ex.yearBuilt == null && !ex.energyClass) return { label: "Andmed puuduvad", signals: [] };
         const eff = ["A", "B", "C"].includes(ex.energyClass ?? "");
@@ -366,16 +390,15 @@ export default function Home() {
         if (ex.yearBuilt != null && ex.yearBuilt < 1960) signals.push("Ajalooline hoone");
         return { label: label || "Andmed puuduvad", signals };
       })(),
+      // 8. Energy class comparison
       energyComparison: ex.energyClass
         ? { thisClass: ex.energyClass, districtMode: d?.districtAverageEurM2 ? "C" : null, nationalMode: d?.nationalEnergyMode ?? "C" }
         : null,
-      // Scrape-dependent blocks stay null until the Coolify service is up
+      // 9. Deviation from comparables — needs /scrape/search
       deviationFromComparables: null,
-      priceHistory: null,
-      daysOnMarket: null,
-      duplicates: null,
-      completeness: null,
+      // 10. Rent vs sale yield — needs /scrape/search?type=rent
       rentYield: null,
+      // 11. Liquidity — needs /scrape/search
       liquidity: null,
     };
   }

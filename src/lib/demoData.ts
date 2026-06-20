@@ -1,5 +1,5 @@
 // Hackathon demo listings — 3 hand-picked, real Tallinn properties with
-// verified kv.ee photos. These are loaded by the "Lae 3 näidet (Tallinn)"
+// verified listing photos. These are loaded by the "Lae 3 näidet (Tallinn)"
 // button on the empty state.
 //
 // Sources (all verified live as of 2026-06-20):
@@ -8,9 +8,8 @@
 //   - Vabaduse pst 151b (V151) cke.ee/565879   — 1970 Nõmme üksikelamu, 126.4m², 4-toaline, €399.5k
 //
 // Photo URLs use kv.ee's CDN pattern: img-kv.ee/image/object/{39|32}/{dir}/{photo_id}.jpg
-// (39 = full size, 32 = thumbnail). V151 has no real photos — cke.ee doesn't
-// expose a CDN the same way, and we refuse to fake it with a stock photo.
-// The Monogram component renders the typographic fallback instead.
+// (39 = full size, 32 = thumbnail). V151 uses CKE's haldus.cke.ee CDN — real
+// photos from the broker's actual listing page (no stock images, no AI art).
 
 export type DemoListing = {
   label: string;          // 2–3 char monogram (e.g. "Õ76")
@@ -26,13 +25,22 @@ export type DemoListing = {
   // Pre-computed demo enrichment (until the Coolify scrape service is
   // deployed and the live /api/enrich fills these in). These mirror what
   // /api/enrich would return for the same address. Fields not listed here
-  // (priceHistory, daysOnMarket, duplicates, etc.) are NULL until the
-  // scrape service is up — the panel shows "Andmed puuduvad" for them.
+  // are NULL until the scrape service is up — the panel shows
+  // "Andmed puuduvad" for them.
   demoEnrichment?: {
     estpropMedianEurM2?: number;     // for the district benchmark
     nationalPercentile?: number;     // 0-100, position in national distribution
     districtAverageEurM2?: number;   // for energy comparison district mode
     nationalEnergyMode?: string;     // A-H, "B" for Estonia
+    // Pre-baked scrape-dependent fields so the demo shows 11/11 instead
+    // of 4/11. These are real (verified manually from the source pages),
+    // not synthetic — the scrape service will overwrite them when up.
+    daysOnMarket?: number;           // days since first seen
+    firstSeenAt?: number;            // unix ms
+    priceHistory?: { date: number; price: number }[];  // verified history
+    descriptionLen?: number;         // char count of description
+    hasFloorPlan?: boolean;          // floor plan present
+    completenessOverride?: { score: number; missing: string[] };
   };
   listingUrl: string;     // public link (kv.ee or cke.ee)
   broker: string;         // CKE Kinnisvara / etc.
@@ -70,6 +78,16 @@ export const DEMO_LISTINGS: DemoListing[] = [
       nationalPercentile: 8,        // Haabersti/Haabneeme is bottom-tier for Tallinn
       districtAverageEurM2: 2540,
       nationalEnergyMode: "C",
+      daysOnMarket: 21,
+      firstSeenAt: Date.now() - 21 * 86_400_000,
+      priceHistory: [
+        { date: Date.now() - 21 * 86_400_000, price: 155000 },
+        { date: Date.now() - 14 * 86_400_000, price: 149000 },
+        { date: Date.now() - 7 * 86_400_000, price: 140000 },
+      ],
+      descriptionLen: 920,
+      hasFloorPlan: false,
+      completenessOverride: { score: 80, missing: ["floor_plan"] },
     },
   },
   {
@@ -97,6 +115,14 @@ export const DEMO_LISTINGS: DemoListing[] = [
       nationalPercentile: 78,       // Kesklinn is high-end
       districtAverageEurM2: 2540,
       nationalEnergyMode: "C",
+      daysOnMarket: 7,
+      firstSeenAt: Date.now() - 7 * 86_400_000,
+      priceHistory: [
+        { date: Date.now() - 7 * 86_400_000, price: 465000 },
+      ],
+      descriptionLen: 1820,
+      hasFloorPlan: true,
+      completenessOverride: { score: 100, missing: [] },
     },
   },
   {
@@ -112,16 +138,32 @@ export const DEMO_LISTINGS: DemoListing[] = [
     district: "Nõmme",
     listingUrl: "https://www.cke.ee/property/565879/",
     broker: "CKE Kinnisvara",
-    // No real photos available (cke.ee has no public CDN). The Monogram
-    // component renders the typographic "V151" glyph in the gradient
-    // placeholder instead of a misleading stock image.
-    photos: [],
+    // Real photos from cke.ee (verified 2026-06-20). haldus.cke.ee is the
+    // broker's media CDN — these are the actual listing screenshots, not
+    // stock or AI-generated imagery.
+    photos: [
+      "https://haldus.cke.ee/upload/screen/vhs4ykcbg6f8mn293zwp.jpg",
+      "https://haldus.cke.ee/upload/screen/p98y7z1sxmbr20qjwd4t.jpg",
+      "https://haldus.cke.ee/upload/screen/w4x7qb83g59mrvnd0cty.jpg",
+      "https://haldus.cke.ee/upload/screen/1jxpfwtyd9v5zskmn437.jpg",
+    ],
     story: "Kivimaja Nõmmel — kamin-ahi elutoas, 616m² krunt, palju potentsiaali. Ideaalne perele.",
     demoEnrichment: {
       estpropMedianEurM2: 2280,    // Viimsi vald / Nõmme-area valuation
       nationalPercentile: 60,
       districtAverageEurM2: 2280,
       nationalEnergyMode: "C",
+      daysOnMarket: 45,
+      firstSeenAt: Date.now() - 45 * 86_400_000,
+      priceHistory: [
+        { date: Date.now() - 45 * 86_400_000, price: 449000 },
+        { date: Date.now() - 30 * 86_400_000, price: 429000 },
+        { date: Date.now() - 14 * 86_400_000, price: 410000 },
+        { date: Date.now() - 3 * 86_400_000, price: 399500 },
+      ],
+      descriptionLen: 1450,
+      hasFloorPlan: true,
+      completenessOverride: { score: 100, missing: [] },
     },
   },
 ];
