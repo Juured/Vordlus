@@ -157,3 +157,147 @@ Cloudflare-targeted users and is far more likely to pass.
 
 MIT. Listing photos are © their respective owners; this service only
 extracts URLs, not image bytes.
+
+## Enrichment layer (v0.3+)
+
+The scrape service persists every /scrape to a local SQLite database
+and exposes two new endpoints the vordlus `/api/enrich` orchestrator
+calls. SQLite is in the stdlib — no native build deps.
+
+### `POST /scrape/listing`
+
+Full record from a single listing URL. Persists to SQLite
+(`DB_PATH`, default `/data/vordlus.db`).
+
+Body: `{ "url": "https://www.kv.ee/3995056" }`
+
+Response (200):
+```json
+{
+  "id": "kv.ee:3995056",
+  "source": "kv.ee",
+  "source_id": "3995056",
+  "url": "https://www.kv.ee/3995056",
+  "address_norm": "viljandi-mnt-47-tallinn",
+  "address_display": "Viljandi mnt 47, Tallinn",
+  "first_seen_at": 1715000000000,
+  "days_on_market": 42,
+  "price_history": [
+    { "date": 1715000000000, "price": 449000 },
+    { "date": 1717800000000, "price": 420000 }
+  ],
+  "current": {
+    "price_eur": 420000, "area_m2": 199, "rooms": 5,
+    "energy_class": "D", "build_year": 1970,
+    "photo_count": 12, "description_len": 1450,
+    "has_floor_plan": true, "photo_url": "https://..."
+  },
+  "blocked": false
+}
+```
+
+- Persists a `listings` row keyed by `source:source_id`. `first_seen_at`
+  is preserved across re-scrapes.
+- Appends to `price_history` only if the price changed since the
+  last observation.
+- **Falls back to SQLite** when `OPENAI_API_KEY` is missing (returns
+  `{"error": "no llm key", "cached": true, ...}` with whatever was
+  previously scraped). This lets the panel boot in the LLM-key
+  bootstrap window.
+
+### `POST /scrape/search`
+
+Listings matching a normalized address, plus aggregate stats.
+
+Body:
+```json
+{
+  "address": "Viljandi mnt 47, Tallinn",
+  "type": "sale",
+  "areaMin": 100, "areaMax": 300,
+  "roomsMin": 3, "roomsMax": 6
+}
+```
+
+Response (200):
+```json
+{
+  "address_norm": "viljandi-mnt-47-tallinn",
+  "type": "sale",
+  "total_count": 12,
+  "by_portal": { "kv.ee": 8, "city24.ee": 4 },
+  "listings": [
+    {
+      "id": "kv.ee:3995056",
+      "url": "https://www.kv.ee/3995056",
+      "portal": "kv.ee",
+      "price_eur": 420000, "area_m2": 199, "rooms": 5,
+      "price_per_m2": 2110,
+      "first_seen_at": 1715000000000,
+      "days_on_market": 42,
+      "address_display": "Viljandi mnt 47, Tallinn",
+      "photo_url": "https://...",
+      "energy_class": "D"
+    }
+  ],
+  "stats": {
+    "median_price_eur": 400000,
+    "median_price_per_m2": 2110,
+    "p25_price_per_m2": 1750,
+    "p75_price_per_m2": 2400
+  },
+  "cached": false
+}
+```
+
+Query strategy: SQLite exact-match on `address_norm` first, then
+LIKE-fallback on the first 2 address tokens. Filters: `areaMin`/
+`areaMax` (m²), `roomsMin`/`roomsMax`.
+
+## Persistence
+
+SQLite via the stdlib `sqlite3` module. Two tables:
+
+```sql
+CREATE TABLE listings (
+  id TEXT PRIMARY KEY,         -- "{source}:{source_id}" e.g. "kv.ee:3995056"
+  source TEXT, source_id TEXT, url TEXT UNIQUE,
+  address_norm TEXT, address_display TEXT,
+  first_seen_at INTEGER, last_seen_at INTEGER,
+  last_price_eur INTEGER, area_m2 REAL, rooms INTEGER,
+  energy_class TEXT, build_year INTEGER,
+  photo_count INTEGER, description_len INTEGER, has_floor_plan INTEGER,
+  photo_url TEXT
+);
+CREATE TABLE price_history (
+  listing_id TEXT, observed_at INTEGER, price_eur INTEGER,
+  PRIMARY KEY (listing_id, observed_at)
+);
+```
+
+**Important:** mount `DB_PATH` (default `/data/vordlus.db`) as a
+Coolify volume so the database persists across container restarts.
+
+## Env vars
+
+- `PORT` — default 3000
+- `SCRAPE_TIMEOUT_MS` — default 30000
+- `CACHE_TTL_SECONDS` — default 3600 (1h)
+- `CACHE_MAX` — default 100
+- `DB_PATH` — default `/data/vordlus.db` (mount as Coolify volume)
+- `OPENAI_API_KEY` — required for /scrape LLM extraction. Without
+  it, /scrape/listing and /scrape/search still work from SQLite cache.
+- `ANTHROPIC_API_KEY` — optional alternative
+- `LLM_PROVIDER` — "openai" (default) or "anthropic"
+- `LLM_MODEL` — override the model name
+
+## Tests
+
+```bash
+cd scrape
+python -m pip install --break-system-packages pytest pydantic
+python -m pytest __tests__/db_test.py -v
+```
+
+6/6 tests pass: schema creation, upsert, first_seen_at preservation,
+price_history dedup, address normalization.
