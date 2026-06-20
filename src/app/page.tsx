@@ -151,7 +151,7 @@ export default function Home() {
 
   async function resolveSlot(
     raw: string,
-    manual?: { price?: number | null; area?: number | null; rooms?: number | null; listingPhoto?: string | null },
+    manual?: { price?: number | null; area?: number | null; rooms?: number | null; listingPhoto?: string | null; listingUrl?: string | null },
   ): Promise<{ ok: boolean; error?: string }> {
     if (!raw.trim()) return { ok: false, error: "Sisesta aadress või ID" };
     try {
@@ -173,6 +173,7 @@ export default function Home() {
           manualArea: manual?.area ?? null,
           manualRooms: manual?.rooms ?? null,
           manualListingPhoto: manual?.listingPhoto ?? null,
+          manualListingUrl: manual?.listingUrl ?? null,
         },
         cadastre: cad,
         ehr: e,
@@ -385,6 +386,7 @@ export default function Home() {
                     area: ex.area,
                     rooms: ex.rooms,
                     listingPhoto: ex.photos[0] ?? null,
+                    listingUrl: ex.listingUrl,
                   });
                 }
               }} />
