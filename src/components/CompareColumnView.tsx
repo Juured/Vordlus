@@ -27,13 +27,14 @@ const IconDoor = <Icon d="M3 22h18M5 22V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v18M14 1
 const IconRuler = <Icon d="M21 16V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM7 10h.01M11 10h.01M15 10h.01M7 14h.01M11 14h.01M15 14h.01" />;
 const IconSun = <Icon d="M12 3v1M12 20v1M3 12h1M20 12h1M5.6 5.6l.7.7M17.7 17.7l.7.7M5.6 18.4l.7-.7M17.7 6.3l.7-.7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />;
 
-function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onRemove }: {
+function PhotoFor({ id, address, buildingType, index, overall, overallLabel, listingPhoto, onRemove }: {
   id: string;
   address: string;
   buildingType: string | null | undefined;
   index: number;
   overall: number;
   overallLabel: string;
+  listingPhoto?: string | null;
   onRemove: () => void;
 }) {
   return (
@@ -43,6 +44,7 @@ function PhotoFor({ id, address, buildingType, index, overall, overallLabel, onR
       index={index}
       overallScore={overall}
       overallLabel={overallLabel}
+      listingPhoto={listingPhoto}
       onClose={onRemove}
     />
   );
@@ -180,6 +182,7 @@ export default function CompareColumnView({ column, index, medianPriceM2, onRemo
           index={index}
           overall={overall}
           overallLabel={overallLabel}
+          listingPhoto={column.listingPhoto ?? null}
           onRemove={onRemove}
         />
       </div>

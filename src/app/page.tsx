@@ -29,6 +29,7 @@ type ResolveResponse = {
   radon?: { class: "madal" | "keskmine" | "korge" } | null;
   flood?: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
   planeeringud?: { name: string; maxFloors: number }[] | null;
+  listingPhoto?: string | null;
   errors: string[];
 };
 
@@ -55,6 +56,7 @@ export default function Home() {
           radon: null,
           flood: null,
           planeeringud: null,
+          listingPhoto: null,
           scores: defaultScores(),
           fetchedAt: 0,
           errors: [],
@@ -172,6 +174,7 @@ export default function Home() {
         radon: j.radon ?? null,
         flood: j.flood ?? null,
         planeeringud: j.planeeringud ?? null,
+        listingPhoto: j.listingPhoto ?? null,
         // Stored scores are best-effort (no median yet)
         scores: computeScores({
           c: cad,

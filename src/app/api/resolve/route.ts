@@ -13,6 +13,7 @@ export type Resolved = {
   radon?: { class: "madal" | "keskmine" | "korge" } | null;
   flood?: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
   planeeringud?: { name: string; maxFloors: number }[] | null;
+  listingPhoto?: string | null;
   errors: string[];
 };
 
@@ -86,6 +87,23 @@ function wgs84FromCad(c: CadastreRecord | null): [number, number] | null {
   return [lng, lat];
 }
 
+// Best-effort fetch of a listing photo for kv.ee / city24.ee / kinnisvara24.ee
+// URLs. We forward to /api/listing-photo (which itself talks to the
+// self-hosted scrape service in Coolify). Failures are swallowed: the
+// comparison card simply falls back to the typographic monogram.
+async function fetchListingPhoto(req: NextRequest, listingUrl: string): Promise<string | null> {
+  try {
+    const u = absoluteUrl(req, `/api/listing-photo?url=${encodeURIComponent(listingUrl)}`);
+    const r = await fetch(u.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (j.skipped || j.blocked) return null;
+    return typeof j.photoUrl === "string" && j.photoUrl ? j.photoUrl : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: { raw?: string };
   try {
@@ -106,6 +124,7 @@ export async function POST(req: NextRequest) {
     radon: null,
     flood: null,
     planeeringud: null,
+    listingPhoto: null,
     errors,
   };
 
@@ -228,6 +247,13 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     errors.push(`Üldine: ${(e as Error).message}`);
+  }
+
+  // For kv.ee / city24.ee / kinnisvara24.ee URLs, also fetch the first
+  // listing photo via the self-hosted scrape service. Best-effort: if it
+  // fails, the card still renders (just with the typographic monogram).
+  if (parsed.kind === "kv-url") {
+    out.listingPhoto = await fetchListingPhoto(req, parsed.raw);
   }
 
   return NextResponse.json(out, {

@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
+
 type Props = {
   address: string;
   buildingType?: string | null;
   index: number;
   overallScore: number;
   overallLabel: string;
+  listingPhoto?: string | null;
   onClose?: () => void;
 };
 
@@ -31,14 +34,38 @@ function deriveGlyph(address: string): string {
   return letter + (numTok ?? "");
 }
 
-export function Monogram({ address, buildingType, index, overallScore, overallLabel, onClose }: Props) {
+export function Monogram({ address, buildingType, index, overallScore, overallLabel, listingPhoto, onClose }: Props) {
   const isMulti = !!buildingType && MULTI.some((m) => buildingType.toLowerCase().includes(m));
+  // If the <img> fails to load (CORS, 404, expired URL) we drop it and let
+  // the typographic monogram take over.
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const showPhoto = !!listingPhoto && !photoFailed;
   return (
     <div className={`relative w-full aspect-[4/3] ${isMulti ? "photo-cool" : "photo-warm"}`}>
+      {showPhoto && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={listingPhoto!}
+          alt=""
+          onError={() => setPhotoFailed(true)}
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      )}
       <div
         aria-hidden="true"
         className="absolute inset-0 grid place-items-center"
-        style={{ fontFamily: '"Fraunces", ui-serif, Georgia, serif', fontWeight: 300, fontSize: 96, lineHeight: 1, color: "#1A1A1A", opacity: 0.92, letterSpacing: "-0.04em" }}
+        style={{
+          fontFamily: '"Fraunces", ui-serif, Georgia, serif',
+          fontWeight: 300,
+          fontSize: 96,
+          lineHeight: 1,
+          color: "#1A1A1A",
+          opacity: showPhoto ? 0 : 0.92,
+          letterSpacing: "-0.04em",
+          transition: "opacity 200ms ease-out",
+        }}
       >
         {deriveGlyph(address)}
       </div>

@@ -22,6 +22,7 @@ export type CompareColumn = {
   radon: { class: "madal" | "keskmine" | "korge" } | null;
   flood: { zone: "ei_ole_ohualas" | "100a_ohualas" | "1000a_ohualas" } | null;
   planeeringud: { name: string; maxFloors: number }[] | null;
+  listingPhoto?: string | null;
   scores: PropertyScores; // 4-score evaluation
   fetchedAt: number;
   errors: string[];
