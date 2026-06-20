@@ -16,7 +16,11 @@ import {
 import { DEMO_LISTINGS } from "@/lib/demoData";
 import { computeScores } from "@/lib/scores";
 import { EMPTY_LIFESTYLE } from "@/lib/lifestyle";
-import PropertyMap from "@/components/PropertyMap";
+import dynamic from "next/dynamic";
+
+const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
+  ssr: false,
+});
 
 const MAX_SLOTS = 5;
 
